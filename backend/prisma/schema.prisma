@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  username        String
+  email           String           @unique
+  password        String
+  imageUrl        String?
+  enrolledCourses Int?             @default(0)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  role            String           @default("user")
+  enrollments     Enrollment[]
+  ratings         CourseRating[]
+  courses         Course[]         @relation("EducatorCourses")
+  purchases       Purchase[]
+  courseProgress  CourseProgress[]
+  TeacherRequest  TeacherRequest[]
+}
+
+model TeacherRequest {
+  id          String  @id @default(cuid())
+  fullname    String
+  education   String
+  experience  String
+  expertise   String
+  certificate String
+  isVerified  Boolean
+  userId      String
+  teacher     User    @relation(fields: [userId], references: [id])
+}
+
+model Course {
+  id                String   @id @default(cuid())
+  courseTitle       String
+  courseDescription String   @db.LongText
+  courseThumbnail   String?
+  coursePrice       Int
+  category          String?
+  isPublished       Boolean  @default(true)
+  discount          Int?     @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  teacher        User             @relation(fields: [teacherId], references: [id], name: "EducatorCourses")
+  teacherId      String
+  chapters       Chapter[]
+  enrollments    Enrollment[]
+  ratings        CourseRating[]
+  purchases      Purchase[]
+  courseProgress CourseProgress[]
+}
+
+model Chapter {
+  id           String    @id @default(cuid())
+  chapterOrder Int
+  chapterTitle String
+  course       Course    @relation(fields: [courseId], references: [id])
+  courseId     String
+  lectures     Lecture[]
+}
+
+model Lecture {
+  id           String   @id @default(cuid())
+  title        String
+  contentUrl   String
+  duration     Int
+  lectureOrder Int
+  isPreview    Boolean  @default(true)
+  chapter      Chapter  @relation(fields: [chapterId], references: [id])
+  chapterId    String
+  createdAt    DateTime @default(now())
+}
+
+model CourseRating {
+  id        String   @id @default(cuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  course    Course   @relation(fields: [courseId], references: [id])
+  courseId  String
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Enrollment {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  course     Course   @relation(fields: [courseId], references: [id])
+  courseId   String
+  enrolledAt DateTime @default(now())
+
+  @@unique([userId, courseId])
+}
+
+model Purchase {
+  id            String         @id @default(cuid())
+  course        Course         @relation(fields: [courseId], references: [id])
+  courseId      String
+  user          User           @relation(fields: [userId], references: [id])
+  userId        String
+  amount        Float
+  pidx          String?
+  transactionId String?
+  paymentMethod String?
+  status        PurchaseStatus @default(pending)
+  createdAt     DateTime       @default(now())
+}
+
+enum PurchaseStatus {
+  pending
+  completed
+  failed
+}
+
+model CourseProgress {
+  id                String             @id @default(cuid())
+  user              User               @relation(fields: [userId], references: [id])
+  userId            String
+  course            Course             @relation(fields: [courseId], references: [id])
+  courseId          String
+  completed         Boolean            @default(false)
+  completedLectures CompletedLecture[]
+}
+
+model CompletedLecture {
+  id               String         @id @default(cuid())
+  courseProgress   CourseProgress @relation(fields: [courseProgressId], references: [id])
+  courseProgressId String
+  lectureId        String
+}
