@@ -1,29 +1,29 @@
-const connectCloudinary = require("../config/cloudinary");
-const prisma = require("../prismaClient");
-const cloudinary = require("cloudinary").v2;
+const connectCloudinary = require('../config/cloudinary');
+const prisma = require('../prismaClient');
+const cloudinary = require('cloudinary').v2;
 
 const updateRoleToTeacher = async (req, res) => {
   try {
     const userid = req.user.id;
     await prisma.user.update({
       where: { id: userid },
-      data: { role: "teacher" },
+      data: { role: 'teacher' },
     });
     return res
       .status(200)
-      .json({ message: "Role updated successfully to TEACHER" });
+      .json({ message: 'Role updated successfully to TEACHER' });
   } catch (error) {
     console.log(error);
     return res
       .status(500)
-      .json({ message: "server error", error: error.message });
+      .json({ message: 'server error', error: error.message });
   }
 };
 
 const addCourse = async (req, res) => {
   try {
-    console.log("Request received:", req.body);
-    console.log("Uploaded Files:", req.files);
+    console.log('Request received:', req.body);
+    console.log('Uploaded Files:', req.files);
 
     const { courseData } = req.body;
     const imageFile = req.files?.image ? req.files.image[0] : null;
@@ -33,7 +33,7 @@ const addCourse = async (req, res) => {
     if (!imageFile) {
       return res
         .status(400)
-        .json({ success: false, message: "Thumbnail not attached" });
+        .json({ success: false, message: 'Thumbnail not attached' });
     }
 
     // Upload the course thumbnail to Cloudinary
@@ -45,11 +45,11 @@ const addCourse = async (req, res) => {
     let videoIndex = 0;
     for (const chapter of parsedCourseData.courseContent) {
       for (const lecture of chapter.chapterContent) {
-        if (lecture.lectureUrl === "" && videoIndex < videoFiles.length) {
+        if (lecture.lectureUrl === '' && videoIndex < videoFiles.length) {
           const videoUpload = await cloudinary.uploader.upload(
             videoFiles[videoIndex].path,
             {
-              resource_type: "video",
+              resource_type: 'video',
             }
           );
 
@@ -63,7 +63,7 @@ const addCourse = async (req, res) => {
       data: {
         courseTitle: parsedCourseData.courseTitle,
         courseDescription: parsedCourseData.courseDescription,
-        category: "empty",
+        category: 'empty',
         coursePrice: parsedCourseData.coursePrice,
         discount: parsedCourseData.discount || 0,
         isPublished: parsedCourseData.isPublished || true,
@@ -94,18 +94,127 @@ const addCourse = async (req, res) => {
       },
     });
 
-    return res
-      .status(201)
-      .json({
-        success: true,
-        message: "Course added successfully",
-        course: newCourse,
-      });
+    return res.status(201).json({
+      success: true,
+      message: 'Course added successfully',
+      course: newCourse,
+    });
   } catch (error) {
-    console.error("Error adding course:", error);
+    console.error('Error adding course:', error);
     return res
       .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+      .json({ success: false, message: 'Server error', error: error.message });
+  }
+};
+
+const updateCourse = async (req, res) => {
+  try {
+    console.log('Update Request received:', req.body);
+    console.log('Uploaded Files:', req.files);
+
+    const { courseId } = req.params;
+    const { courseData } = req.body;
+    const imageFile = req.files?.image ? req.files.image[0] : null;
+    const videoFiles = req.files?.videos || [];
+    const teacherId = req.user.id;
+    console.log(courseId);
+    console.log('sdfgfsdg', req.body);
+    console.log(imageFile, videoFiles, teacherId);
+
+    if (!courseId) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Course ID is required' });
+    }
+
+    const existingCourse = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: { chapters: { include: { lectures: true } } },
+    });
+
+    if (!existingCourse) {
+      return res
+        .status(404)
+        .json({ success: false, message: 'Course not found' });
+    }
+
+    if (existingCourse.teacherId !== teacherId) {
+      return res.status(403).json({
+        success: false,
+        message: 'Unauthorized to update this course',
+      });
+    }
+
+    const parsedCourseData = JSON.parse(courseData);
+
+    // Upload new course thumbnail if provided
+    if (imageFile) {
+      const imageUpload = await cloudinary.uploader.upload(imageFile.path);
+      parsedCourseData.courseThumbnail = imageUpload.secure_url;
+    } else {
+      parsedCourseData.courseThumbnail = existingCourse.courseThumbnail;
+    }
+
+    let videoIndex = 0;
+    for (const chapter of parsedCourseData.courseContent) {
+      for (const lecture of chapter.chapterContent) {
+        if (lecture.lectureUrl === '' && videoIndex < videoFiles.length) {
+          const videoUpload = await cloudinary.uploader.upload(
+            videoFiles[videoIndex].path,
+            { resource_type: 'video' }
+          );
+
+          lecture.lectureUrl = videoUpload.secure_url;
+          videoIndex++;
+        }
+      }
+    }
+
+    const updatedCourse = await prisma.course.update({
+      where: { id: courseId },
+      data: {
+        courseTitle: parsedCourseData.courseTitle,
+        courseDescription: parsedCourseData.courseDescription,
+        coursePrice: parsedCourseData.coursePrice,
+        discount: parsedCourseData.discount || 0,
+        isPublished: parsedCourseData.isPublished,
+        courseThumbnail: parsedCourseData.courseThumbnail,
+        chapters: {
+          deleteMany: {}, // Remove existing chapters before adding new ones
+          create: parsedCourseData.courseContent.map((chapter) => ({
+            chapterTitle: chapter.chapterTitle,
+            chapterOrder: chapter.chapterOrder,
+            lectures: {
+              create: chapter.chapterContent.map((lecture) => ({
+                title: lecture.lectureTitle,
+                contentUrl: lecture.lectureUrl,
+                duration: parseInt(lecture.lectureDuration),
+                isPreview: lecture.isPreviewFree,
+                lectureOrder: lecture.lectureOrder,
+              })),
+            },
+          })),
+        },
+      },
+      include: {
+        enrollments: true,
+        teacher: true,
+        chapters: { include: { lectures: true } },
+      },
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Course updated successfully',
+      course: updatedCourse,
+    });
+  } catch (error) {
+    console.error('Error updating course:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Server error',
+      error: error.message,
+    });
   }
 };
 
@@ -128,10 +237,10 @@ const getTeacherCourse = async (req, res) => {
 
     return res.status(200).json({ success: true, courses });
   } catch (error) {
-    console.error("Error fetching teacher courses:", error);
+    console.error('Error fetching teacher courses:', error);
     return res
       .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+      .json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -159,10 +268,18 @@ const teacherDashboardData = async (req, res) => {
     });
 
     // Count total enrolled students across all courses by the teacher
-    const totalEnrolledStudents = await prisma.enrollment.count({
+    const totalEnrolledStudents = await prisma.enrollment.findMany({
       where: {
         course: {
           teacherId: teacherId,
+        },
+      },
+      include: {
+        user: true,
+        course: {
+          select: {
+            courseTitle: true,
+          },
         },
       },
     });
@@ -176,10 +293,10 @@ const teacherDashboardData = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching teacher dashboard data:", error);
+    console.error('Error fetching teacher dashboard data:', error);
     return res.status(500).json({
       success: false,
-      message: "Server error",
+      message: 'Server error',
       error: error.message,
     });
   }
@@ -274,7 +391,7 @@ const getEnrollmentStudentData = async (req, res) => {
     const purchases = await prisma.purchase.findMany({
       where: {
         courseId: { in: courseIds },
-        status: "completed",
+        status: 'completed',
       },
       include: {
         user: {
@@ -308,10 +425,10 @@ const getEnrollmentStudentData = async (req, res) => {
       enrolledStudents,
     });
   } catch (error) {
-    console.error("Error fetching enrollment data:", error);
+    console.error('Error fetching enrollment data:', error);
     return res.status(500).json({
       success: false,
-      message: "Server error",
+      message: 'Server error',
       error: error.message,
     });
   }
@@ -322,4 +439,5 @@ module.exports = {
   getTeacherCourse,
   teacherDashboardData,
   getEnrollmentStudentData,
+  updateCourse,
 };

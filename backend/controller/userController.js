@@ -1,5 +1,5 @@
-const prisma = require("../prismaClient");
-const Stripe = require("stripe");
+const prisma = require('../prismaClient');
+const Stripe = require('stripe');
 
 // Get user data
 const getUserData = async (req, res) => {
@@ -18,14 +18,14 @@ const getUserData = async (req, res) => {
     if (!user) {
       return res
         .status(404)
-        .json({ success: false, message: "User not found" });
+        .json({ success: false, message: 'User not found' });
     }
     return res.status(200).json({ success: true, user });
   } catch (error) {
-    console.log("Error fetching user data:", error.message);
+    console.log('Error fetching user data:', error.message);
     res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: 'Server Error',
       error: error.message,
     });
   }
@@ -53,11 +53,26 @@ const getUserEnrolledCourses = async (req, res) => {
                   select: {
                     id: true,
                     chapterTitle: true,
-                    lectures: true
+                    lectures: true,
+                  },
+                },
+                teacher: {
+                  select: {
+                    id: true,
+                    username: true,
+                    email: true,
+                    imageUrl: true,
+                  },
+                },
+                ratings: {
+                  select: {
+                    id: true,
+                    userId: true,
+                    rating: true,
                   },
                 },
               },
-            }
+            },
           },
         },
       },
@@ -66,7 +81,7 @@ const getUserEnrolledCourses = async (req, res) => {
     if (!userData) {
       return res
         .status(404)
-        .json({ success: false, message: "User or enrollments not found" });
+        .json({ success: false, message: 'User or enrollments not found' });
     }
 
     return res.status(200).json({
@@ -76,10 +91,10 @@ const getUserEnrolledCourses = async (req, res) => {
       ),
     });
   } catch (error) {
-    console.log("Error fetching user enrollments:", error.message);
+    console.log('Error fetching user enrollments:', error.message);
     res.status(500).json({
       success: false,
-      message: "Server Error",
+      message: 'Server Error',
       error: error.message,
     });
   }
@@ -103,7 +118,7 @@ const purchaseCourse = async (req, res) => {
     if (!userData || !courseData) {
       return res
         .status(404)
-        .json({ success: false, message: "User or course not found" });
+        .json({ success: false, message: 'User or course not found' });
     }
 
     // Calculate discounted price
@@ -117,7 +132,7 @@ const purchaseCourse = async (req, res) => {
       courseId: courseData.id,
       userId: userId,
       amount: parseFloat(discountedPrice), // Convert to float
-      status: "pending", // Set the initial status as pending
+      status: 'pending', // Set the initial status as pending
     };
 
     const newPurchase = await prisma.purchase.create({ data: purchaseData });
@@ -144,26 +159,27 @@ const purchaseCourse = async (req, res) => {
       success_url: `${origin}/loading/my-enrollments`,
       cancel_url: `${origin}/`,
       line_items,
-      mode: "payment",
+      mode: 'payment',
       metadata: { purchaseId: newPurchase.id.toString() },
     });
 
     // Send the session ID back to the frontend
     res.status(200).json({
       success: true,
-      message: "Course purchased successfully",
+      message: 'Course purchased successfully',
       session_url: session.url,
     });
   } catch (error) {
-    console.log("Error during course purchase:", error.message);
-    res.status(500).json({ message: "Server Error", error: error.message });
+    console.log('Error during course purchase:', error.message);
+    res.status(500).json({ message: 'Server Error', error: error.message });
   }
 };
 
 // Update User Course Progress
 const updateUserCourseProgress = async (req, res) => {
   try {
-    const userId = req.auth.userId;
+    const userId = req.user.id;
+    console.log(userId);
     const { courseId, lectureId } = req.body;
 
     // Check if progress data exists for the user and course
@@ -181,7 +197,7 @@ const updateUserCourseProgress = async (req, res) => {
       if (lectureAlreadyCompleted) {
         return res.json({
           success: true,
-          message: "Lecture Already Completed",
+          message: 'Lecture Already Completed',
         });
       }
 
@@ -198,6 +214,7 @@ const updateUserCourseProgress = async (req, res) => {
         data: {
           userId,
           courseId,
+          completed: true,
           completedLectures: {
             create: [{ lectureId }],
           },
@@ -206,12 +223,12 @@ const updateUserCourseProgress = async (req, res) => {
       });
     }
 
-    return res.json({ success: true, message: "Progress Updated" });
+    return res.json({ success: true, message: 'Progress Updated' });
   } catch (error) {
-    console.error("Error updating course progress:", error.message);
+    console.error('Error updating course progress:', error.message);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+      .json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -221,7 +238,7 @@ const getUserCourseProgress = async (req, res) => {
   try {
     const userId = req.user.userId; // Assuming the authenticated user ID is in req.auth
     const { courseId } = req.body;
-    console.log(courseId)
+    console.log(courseId);
 
     // Fetch the course progress for the user and course
     const progressData = await prisma.courseProgress.findFirst({
@@ -234,16 +251,16 @@ const getUserCourseProgress = async (req, res) => {
       },
     });
 
-    if (!progressData) {
-      return res.status(404).json({
-        success: false,
-        message: "Progress data not found for the specified course.",
-      });
-    }
+    // if (!progressData) {
+    //   return res.status(404).json({
+    //     success: false,
+    //     message: "Progress data not found for the specified course.",
+    //   });
+    // }
 
-    res.status(200).json({ success: true, progressData });
+    res.status(200).json({ success: true, progress: progressData || {} });
   } catch (error) {
-    console.error("Error fetching course progress:", error.message);
+    console.error('Error fetching course progress:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -257,7 +274,7 @@ const addUserRatingToCourse = async (req, res) => {
     if (!courseId || !rating || rating < 1 || rating > 5) {
       return res
         .status(400)
-        .json({ success: false, message: "Invalid rating details" });
+        .json({ success: false, message: 'Invalid rating details' });
     }
 
     // Check if the course exists
@@ -268,7 +285,7 @@ const addUserRatingToCourse = async (req, res) => {
     if (!course) {
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: 'Course not found' });
     }
     console.log(userId, courseId);
     // Check if the user is enrolled in the course
@@ -279,7 +296,7 @@ const addUserRatingToCourse = async (req, res) => {
     if (!enrollment) {
       return res
         .status(403)
-        .json({ success: false, message: "User not enrolled in the course" });
+        .json({ success: false, message: 'User not enrolled in the course' });
     }
 
     // Check if the user has already rated this course
@@ -296,7 +313,7 @@ const addUserRatingToCourse = async (req, res) => {
 
       return res
         .status(200)
-        .json({ success: true, message: "Rating updated successfully" });
+        .json({ success: true, message: 'Rating updated successfully' });
     } else {
       // Add new rating
       await prisma.courseRating.create({
@@ -310,13 +327,13 @@ const addUserRatingToCourse = async (req, res) => {
 
       return res
         .status(201)
-        .json({ success: true, message: "Rating added successfully" });
+        .json({ success: true, message: 'Rating added successfully' });
     }
   } catch (error) {
-    console.error("Error adding/updating course rating:", error.message);
+    console.error('Error adding/updating course rating:', error.message);
     return res
       .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+      .json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
