@@ -1,8 +1,8 @@
 const {
   initializeKhaltiPayment,
   verifyKhaltiPayment,
-} = require("./khaltiController");
-const prisma = require("../prismaClient");
+} = require('./khaltiController');
+const prisma = require('../prismaClient');
 
 // Purchase Course using Khalti
 const purchaseCourseKhalti = async (req, res) => {
@@ -10,14 +10,16 @@ const purchaseCourseKhalti = async (req, res) => {
     const { courseId } = req.body;
     const userId = req.user.id;
 
+    console.log(courseId);
+    console.log(userId);
     // Fetch user and course data
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    const user = await prisma.user.findFirst({ where: { id: userId } });
+    const course = await prisma.course.findFirst({ where: { id: courseId } });
 
     if (!user || !course) {
       return res
         .status(404)
-        .json({ success: false, message: "User or course not found" });
+        .json({ success: false, message: 'User or course not found' });
     }
 
     // Calculate final price after discount
@@ -26,36 +28,37 @@ const purchaseCourseKhalti = async (req, res) => {
       (course.discount * course.coursePrice) / 100
     ).toFixed(2);
 
+    console.log(discountedPrice);
     // Create purchase record in database
     const purchase = await prisma.purchase.create({
       data: {
         userId,
         courseId,
         amount: parseFloat(discountedPrice),
-        status: "pending",
-        paymentMethod: "khalti",
+        status: 'pending',
+        paymentMethod: 'khalti',
       },
     });
 
     // Initialize Khalti Payment
     const paymentResponse = await initializeKhaltiPayment({
       return_url: `${process.env.BACKEND_URI}/api/complete-khalti-payment`,
-      website_url: "http://localhost:5173/course-list",
-      amount: parseFloat(discountedPrice), // Convert NPR to paisa
+      website_url: 'http://localhost:5173/course-list',
+      amount: parseFloat(discountedPrice) * 100, // Convert NPR to paisa
       purchase_order_id: purchase.id,
       purchase_order_name: course.courseTitle,
     });
 
     res.status(200).json({
       success: true,
-      message: "Payment initiated successfully",
+      message: 'Payment initiated successfully',
       payment_url: paymentResponse.payment_url, // Redirect user to this link
     });
   } catch (error) {
-    console.error("Error purchasing course:", error);
+    console.error('Error purchasing course:', error);
     res
       .status(500)
-      .json({ success: false, message: "Server Error", error: error.message });
+      .json({ success: false, message: 'Server Error', error: error.message });
   }
 };
 
@@ -68,17 +71,15 @@ const completeKhaltiPayment = async (req, res) => {
     const paymentInfo = await verifyKhaltiPayment(pidx);
 
     if (
-      paymentInfo?.status !== "Completed" ||
+      paymentInfo?.status !== 'Completed' ||
       paymentInfo.transaction_id !== transaction_id ||
       Number(paymentInfo.total_amount) !== Number(amount)
     ) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: "Invalid payment details",
-          paymentInfo,
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid payment details',
+        paymentInfo,
+      });
     }
 
     // Retrieve purchase record
@@ -89,13 +90,13 @@ const completeKhaltiPayment = async (req, res) => {
     if (!purchase) {
       return res
         .status(400)
-        .json({ success: false, message: "Purchase record not found" });
+        .json({ success: false, message: 'Purchase record not found' });
     }
 
     // Update purchase status to "completed"
     await prisma.purchase.update({
       where: { id: purchase_order_id },
-      data: { status: "completed", pidx, transactionId: transaction_id },
+      data: { status: 'completed', pidx, transactionId: transaction_id },
     });
 
     // Enroll user in the course
@@ -107,10 +108,10 @@ const completeKhaltiPayment = async (req, res) => {
     });
     return res.redirect(`http://localhost:5173`);
   } catch (error) {
-    console.error("Error verifying Khalti payment:", error);
+    console.error('Error verifying Khalti payment:', error);
     res
       .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+      .json({ success: false, message: 'Server error', error: error.message });
   }
 };
 
@@ -122,15 +123,15 @@ const handleKhaltiPaymentFailure = async (req, res) => {
     // Update the purchase status to "failed"
     await prisma.purchase.update({
       where: { id: purchase_order_id },
-      data: { status: "failed" },
+      data: { status: 'failed' },
     });
 
-    res.json({ success: true, message: "Payment marked as failed." });
+    res.json({ success: true, message: 'Payment marked as failed.' });
   } catch (error) {
-    console.error("Error handling failed payment:", error);
+    console.error('Error handling failed payment:', error);
     res
       .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
+      .json({ success: false, message: 'Server error', error: error.message });
   }
 };
 

@@ -1,17 +1,36 @@
-import React, { useState, useEffect } from "react";
-import { dummyStudentEnrolled } from "../../assets/assets";
-import Loading from "../../components/student/Loading";
+import React, { useState, useEffect } from 'react';
+import { dummyStudentEnrolled } from '../../assets/assets';
+import Loading from '../../components/student/Loading';
+import apiClient from '../../api/axios';
+import { useContext } from 'react';
+import { AppContext } from '../../context/AppContext';
 
 const StudentEnrolled = () => {
+  const { isTeacher } = useContext(AppContext);
   const [enrolledStudents, setEnrolledStudents] = useState(null);
 
   const fetchEnrolledStudents = async () => {
-    setEnrolledStudents(dummyStudentEnrolled);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await apiClient.get('enrolled-students', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (data.success) {
+        setEnrolledStudents(data.enrolledStudents.reverse());
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
-    fetchEnrolledStudents();
-  }, []);
+    if (isTeacher) {
+      fetchEnrolledStudents();
+    }
+  }, [isTeacher]);
 
   return enrolledStudents ? (
     <div className="min-h-screen flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0">
@@ -37,11 +56,11 @@ const StudentEnrolled = () => {
                 </td>
                 <td className="px-2 py-3 md:px-4 flex items-center space-x-3">
                   <img
-                    src={student.student.imageUrl}
+                    src={student.studentImage}
                     alt="Profile"
                     className="w-9 h-9 rounded-full"
                   />
-                  <span className="truncate">{student.student.name}</span>
+                  <span className="truncate">{student.studentName}</span>
                 </td>
 
                 <td className="px-4 py-3 truncate">{student.courseTitle}</td>

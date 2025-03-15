@@ -1,22 +1,40 @@
-import React, { useState, useEffect, useContext } from "react";
-import { AppContext } from "../../context/AppContext";
-import { dummyDashboardData } from "../../assets/assets";
-import Loading from "../../components/student/Loading";
-import patients from "../../assets/image/patients_icon.svg";
-import appointments from "../../assets/image/appointments_icon.svg";
-import earning from "../../assets/image/earning_icon.svg";
+import React, { useState, useEffect, useContext } from 'react';
+import { AppContext } from '../../context/AppContext';
+import apiClient from '../../api/axios';
+import { toast } from 'react-toastify';
+import Loading from '../../components/student/Loading';
+import patients from '../../assets/image/patients_icon.svg';
+import appointments from '../../assets/image/appointments_icon.svg';
+import earning from '../../assets/image/earning_icon.svg';
 
 const Dashboard = () => {
-  const { currency } = useContext(AppContext);
+  const { currency, isTeacher } = useContext(AppContext);
   const [dashboardData, setDashboardData] = useState(null);
 
   const fetchDashboardData = async () => {
-    setDashboardData(dummyDashboardData);
+    try {
+      const token = localStorage.getItem('token');
+      const { data } = await apiClient.get('/dashboard', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      console.log('data', data);
+
+      if (data.success) {
+        setDashboardData(data.data);
+      } else {
+        toast.error(data.message);
+      }
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    if (isTeacher) {
+      fetchDashboardData();
+    }
+  }, [isTeacher]);
 
   return dashboardData ? (
     <div className="min-h-screen flex flex-col items-start justify-between gap-8 md:p-8 md:pb-0 p-4 pt-8 pb-0">
@@ -26,7 +44,7 @@ const Dashboard = () => {
             <img src={patients} className="w-8" alt="patients icon" />
             <div>
               <p className="text-2xl font-medium text-gray-600">
-                {dashboardData.enrolledStudentData.length}
+                {dashboardData.totalEnrolledStudents.length}
               </p>
               <p className="text-base text-gray-500">Total Enrollments</p>
             </div>
@@ -66,20 +84,22 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody className="text-sm text-gray-500">
-                {dashboardData.enrolledStudentData.map((data, index) => (
+                {dashboardData.totalEnrolledStudents.map((data, index) => (
                   <tr key={index} className="border-b border-gray-500/20">
                     <td className="px-4 py-3 text-center hidden sm:table-cell">
                       {index + 1}
                     </td>
                     <td className="md:px-4 px-2 py-3 flex items-center space-x-3">
                       <img
-                        src={data.student.imageUrl}
+                        src={data.user.imageUrl}
                         alt="student"
                         className="w-9 h-9 rounded-full"
                       />
-                      <span className="truncate">{data.student.name}</span>
+                      <span className="truncate">{data.user.username}</span>
                     </td>
-                    <td className="px-4 py-3 truncate">{data.courseTitle}</td>
+                    <td className="px-4 py-3 truncate">
+                      {data.course.courseTitle}
+                    </td>
                   </tr>
                 ))}
               </tbody>
