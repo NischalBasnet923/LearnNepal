@@ -25,6 +25,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import 'quill/dist/quill.snow.css';
 import VerifyTeacher from './pages/teacher/verfiyTeacher';
+import Chat from './pages/teacher/chat';
 
 const App = () => {
   const isTeacherRoute = useMatch('/teacher/*');
@@ -47,6 +48,7 @@ const App = () => {
           <Route path="/teacher" element={<Dashboard />} />
           <Route path="add-course" element={<AddCourse />} />
           <Route path="my-courses" element={<MyCourses />} />
+          <Route path="message" element={<Chat />} />
           <Route path="student-enrolled" element={<StudentEnrolled />} />
         </Route>
         <Route path="/admin" element={<Admin />}>

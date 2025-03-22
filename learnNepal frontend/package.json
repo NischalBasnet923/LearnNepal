@@ -13,6 +13,7 @@
     "@reduxjs/toolkit": "^2.5.1",
     "axios": "^1.7.9",
     "humanize-duration": "^3.32.1",
+    "jwt-decode": "^4.0.0",
     "lucide-react": "^0.475.0",
     "quill": "^2.0.3",
     "rc-progress": "^4.0.0",
@@ -22,6 +23,7 @@
     "react-router-dom": "^7.1.5",
     "react-toastify": "^11.0.3",
     "react-youtube": "^10.1.0",
+    "socket.io-client": "^4.8.1",
     "uniqid": "^5.4.0"
   },
   "devDependencies": {

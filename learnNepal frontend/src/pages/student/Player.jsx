@@ -33,7 +33,8 @@ const Player = () => {
   const [totalLectures, setTotalLectures] = useState(0);
   const [currentProgress, setCurrentProgress] = useState(null);
   const [initialRating, setInitialRating] = useState(0);
-  const [rating, setRating] = useState(0); // Added missing rating state
+  const [rating, setRating] = useState(0);
+  const [comment, setComment] = useState('');
   const videoRef = useRef(null);
 
   const user = localStorage.getItem('userInfo');
@@ -48,12 +49,15 @@ const Player = () => {
       const total = calculateNoOfLectures(course);
       setTotalLectures(total);
 
-      // Set initial ratings
+      // Set initial ratings and comments
       if (user && course.ratings) {
         course.ratings.forEach((item) => {
           if (item.userId === JSON.parse(user).userId) {
             setInitialRating(item.rating);
-            setRating(item.rating); // Also update the current rating state
+            setRating(item.rating);
+            if (item.comment) {
+              setComment(item.comment);
+            }
           }
         });
       }
@@ -187,7 +191,6 @@ const Player = () => {
         setCurrentProgress(0);
       }
     } catch (error) {
-      console.error('Error fetching course progress:', error);
       toast.error(
         error.response?.data?.message ||
           error.message ||
@@ -213,12 +216,6 @@ const Player = () => {
   const isLectureCompleted = (chapterIndex, lectureIndex) => {
     const lectureId =
       coursesData.chapters[chapterIndex].lectures[lectureIndex].id;
-
-    console.log('Checking if lecture is completed:', {
-      lectureId,
-      completedLectures,
-    });
-
     return completedLectures.includes(lectureId);
   };
 
@@ -238,12 +235,25 @@ const Player = () => {
     }
   }, [completedLectures, totalLectures, coursesData]);
 
-  const handleRate = async (newRating) => {
-    try {
-      // Update the rating state with the new value
-      setRating(newRating);
+  // Handle rating change from the Rating component
+  const handleRatingChange = (newRating) => {
+    setRating(newRating);
+  };
 
-      const payload = { courseId: courseId, rating: newRating };
+  // Handle submission of rating and comment
+  const submitRating = async () => {
+    if (rating < 1 || rating > 5) {
+      toast.error('Please select a rating between 1 and 5');
+      return;
+    }
+
+    try {
+      const payload = {
+        courseId: courseId,
+        rating: rating,
+        comment: comment,
+      };
+
       const { data } = await apiClient.post('/user/add-rating', payload, {
         headers: { Authorization: 'Bearer ' + token },
       });
@@ -251,11 +261,23 @@ const Player = () => {
       if (data.success) {
         toast.success(data.message);
         fetchUserEnrolledCourses();
+
+        // Update initial rating to match current rating
+        setInitialRating(rating);
+
+        // Clear comment field after successful submission if it's a new rating
+        if (data.message.includes('added')) {
+          setComment('');
+        }
       } else {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(
+        error.response?.data?.message ||
+          error.message ||
+          'Failed to submit rating'
+      );
     }
   };
 
@@ -464,12 +486,38 @@ const Player = () => {
                 )}
 
                 {/* Rating component */}
-                <div className="mt-6 flex items-center gap-3">
-                  <Award size={20} className="text-yellow-500" />
-                  <span className="text-gray-700 font-medium">
-                    Rate this lecture:
-                  </span>
-                  <Rating initialRating={initialRating} onRate={handleRate} />
+                <div className="mt-6 flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <Award size={20} className="text-yellow-500" />
+                    <span className="text-gray-700 font-medium">
+                      Rate this course:
+                    </span>
+                    <Rating
+                      initialRating={initialRating}
+                      onRatingChange={handleRatingChange}
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 p-4 rounded-md">
+                    <label
+                      htmlFor="comment"
+                      className="block mb-2 text-sm font-medium text-gray-700">
+                      Add a comment (optional)
+                    </label>
+                    <textarea
+                      id="comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      className="w-full p-3 border border-gray-200 rounded-md min-h-20 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Share your thoughts about this course..."></textarea>
+
+                    <button
+                      onClick={submitRating}
+                      className="mt-3 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                      disabled={rating < 1}>
+                      Submit Feedback
+                    </button>
+                  </div>
                 </div>
 
                 {/* Additional content for the expanded area */}
