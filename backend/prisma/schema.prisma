@@ -7,22 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model User {
-  id              String           @id @default(cuid())
-  username        String
-  email           String           @unique
-  password        String
-  imageUrl        String?
-  enrolledCourses Int?             @default(0)
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  role            String           @default("user")
-  enrollments     Enrollment[]
-  ratings         CourseRating[]
-  courses         Course[]         @relation("EducatorCourses")
-  purchases       Purchase[]
-  courseProgress  CourseProgress[]
-  TeacherRequest  TeacherRequest[]
+  id               String           @id @default(cuid())
+  username         String
+  email            String           @unique
+  password         String
+  imageUrl         String?
+  enrolledCourses  Int?             @default(0)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  role             String           @default("user")
+  enrollments      Enrollment[]
+  ratings          CourseRating[]
+  courses          Course[]         @relation("EducatorCourses")
+  purchases        Purchase[]
+  courseProgress   CourseProgress[]
+  TeacherRequest   TeacherRequest[]
+  Message          Message[]        @relation("Sender")
+  receivedMessages Message[]        @relation("Receiver")
+  User             User[]           @relation("UserFriends")
+  Requestfrom      Request[]        @relation("RequestFrom")
+  Requestuser      Request[]        @relation("RequestUser")
+  friends          User[]        @relation("UserFriends")
 }
 
 model TeacherRequest {
@@ -33,6 +40,8 @@ model TeacherRequest {
   expertise   String
   certificate String
   isVerified  Boolean
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
   userId      String
   teacher     User    @relation(fields: [userId], references: [id])
 }
@@ -138,4 +147,34 @@ model CompletedLecture {
   courseProgress   CourseProgress @relation(fields: [courseProgressId], references: [id])
   courseProgressId String
   lectureId        String
+}
+
+model Request {
+  id        Int      @id @default(autoincrement())
+  fromId    String
+  from      User     @relation("RequestFrom", fields: [fromId], references: [id])
+  message   String
+  status    Status   @default(pending)
+  userId    String
+  user      User     @relation("RequestUser", fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model Message {
+  id         Int      @id @default(autoincrement())
+  senderId   String
+  sender     User     @relation("Sender", fields: [senderId], references: [id])
+  receiverId String
+  receiver   User     @relation("Receiver", fields: [receiverId], references: [id])
+  message    String?
+  timeStamp  DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now())
+}
+
+enum Status {
+  pending
+  accepted
+  rejected
 }

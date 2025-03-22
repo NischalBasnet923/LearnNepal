@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authenticationController = require('../controller/authenticationController');
 const teacherController = require('../controller/teacherController');
+const adminController = require('../controller/adminController');
 const {
   authMiddleware,
   protectTeacher,
@@ -14,6 +15,14 @@ const {
   verifyTeacher,
   getExistingTeacherRequest,
 } = require('../controller/verifyTeacher');
+const getRequests = require('../controller/adminController');
+
+const {
+  sendRequest,
+  getFriends,
+  sendMessage,
+  getMessage,
+} = require('../controller/chatController');
 
 // Authentication Routes
 router.post('/register', authenticationController.register);
@@ -105,5 +114,14 @@ router.post(
   authMiddleware(),
   verifyTeacher
 );
+
+// admin routes
+router.get('/getRequest', authMiddleware(), adminController.getRequests);
+router.put('/approveTeacher', authMiddleware(), adminController.approveTeacher);
+router.put('/declineTeacher', authMiddleware(), adminController.declineTeacher);
+
+router.get('/chat/getfriends', authMiddleware(), getFriends);
+router.post('/chat/sendMessage', authMiddleware(), sendMessage);
+router.post('/chat/getMessage', authMiddleware(), getMessage);
 
 module.exports = router;

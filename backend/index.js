@@ -1,16 +1,32 @@
-const express = require("express");
-const routes = require("./routers/routes");
-require("dotenv").config();
+const express = require('express');
+const routes = require('./routers/routes');
+require('dotenv').config();
+const cors = require('cors');
+const connectCloudinary = require('./config/cloudinary');
+const stripeWebhooks = require('./controller/webhooks');
+const { setupSocketServer } = require('./controller/socketController');
+const http = require('http');
 const app = express();
-const cors = require("cors");
+
+app.use('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks);
 
 app.use(express.json());
-app.use(cors()); 
+app.use(cors());
 
-// Use the routes
-app.use("/api", routes);
+// Use other routes
+app.use('/api', routes);
+
+const server = http.createServer(app);
+// Setup socket server
+const io = setupSocketServer(server);
+
+// Attach io to routes if needed
+app.use((req, res, next) => {
+  req.io = io;
+  next();
+});
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
