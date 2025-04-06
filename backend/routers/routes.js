@@ -90,6 +90,12 @@ router.post(
   userController.addUserRatingToCourse
 );
 
+router.get(
+  '/user/getRequests',
+  authMiddleware(),
+  userController.getRequestsTeacher
+);
+
 // 🔹 Khalti Payment Routes
 router.post(
   '/purchase-course/khalti',
@@ -120,7 +126,7 @@ router.get('/getRequest', authMiddleware(), adminController.getRequests);
 router.put('/approveTeacher', authMiddleware(), adminController.approveTeacher);
 router.put('/declineTeacher', authMiddleware(), adminController.declineTeacher);
 
-router.get('/chat/getfriends', authMiddleware(), getFriends);
+router.get('/chat/getFriends', authMiddleware(), getFriends);
 router.post('/chat/sendMessage', authMiddleware(), sendMessage);
 router.post('/chat/getMessage', authMiddleware(), getMessage);
 

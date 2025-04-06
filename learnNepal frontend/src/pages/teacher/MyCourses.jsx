@@ -237,7 +237,7 @@ const MyCourses = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <Link
-                          to={`/dashboard/edit-course/${course.id}`}
+                          to={`/teacher/update-course/${course.id}`}
                           className="text-gray-600 hover:text-gray-900 bg-gray-100 p-2 rounded-md"
                           title="Edit course">
                           <Edit size={18} />

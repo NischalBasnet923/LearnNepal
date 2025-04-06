@@ -1,5 +1,5 @@
-import React from "react";
-import { images } from "../../context";
+import React from 'react';
+import { images } from '../../context';
 
 const Footer = () => {
   return (
@@ -8,9 +8,12 @@ const Footer = () => {
         <div className="flex flex-col md:items-start items-center w-full">
           <img src={images.logo1} alt="logo" className="h-[40px]" />
           <p className="mt-6 text-center md:text-left text-sm text-white/80">
-            Lorem ipsum dolor sit amet consectetur adipisicing elit. Suscipit
-            itaque necessitatibus a nisi dolores voluptatum, laudantium officia
-            corporis qui? Nobis!
+            The Learn Nepal Project is a non-profit dedicated to advancing
+            education and cultural exchange in Nepal.We provide resources,
+            workshops, and programs to empower Nepalese communities through
+            learning. Our mission is to bridge cultural gaps and promote
+            understanding of Nepal’s rich heritage. Join us in supporting
+            sustainable education initiatives for children and adults alike.
           </p>
         </div>
         <div className="flex flex-col md:items-start items-center w-full">

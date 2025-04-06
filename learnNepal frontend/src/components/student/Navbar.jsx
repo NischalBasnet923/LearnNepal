@@ -1,48 +1,48 @@
-import React, { useContext, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, Search } from "lucide-react";
-import logo from "../../assets/image/logo.png";
-import { AppContext } from "../../context/AppContext";
-import apiClient from "../../api/axios";
-import { toast } from "react-toastify";
+import React, { useContext, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Menu, X, Search } from 'lucide-react';
+import logo from '../../assets/image/logo.png';
+import { AppContext } from '../../context/AppContext';
+import apiClient from '../../api/axios';
+import { toast } from 'react-toastify';
 
 const Navbar = ({ data }) => {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [input, setInput] = useState(data || "");
+  const [input, setInput] = useState(data || '');
   const { isTeacher, setIsTeacher, isAdmin } = useContext(AppContext);
   console.log(isTeacher);
 
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
   // Handle Sign Out
   const handleSignOut = () => {
-    localStorage.removeItem("isLoggedIn");
-    localStorage.removeItem("userInfo");
-    localStorage.removeItem("role");
-    localStorage.removeItem("token");
+    localStorage.removeItem('isLoggedIn');
+    localStorage.removeItem('userInfo');
+    localStorage.removeItem('role');
+    localStorage.removeItem('token');
 
-    navigate("/");
+    navigate('/');
   };
 
   const onSearchHandler = (e) => {
     e.preventDefault();
-    navigate("/course-list/" + input);
+    navigate('/course-list/' + input);
   };
 
   const becomeTeacher = async () => {
     try {
       if (isTeacher) {
-        navigate("/teacher");
+        navigate('/teacher');
         return;
       }
 
-      const { data } = await apiClient.put("/updateRole", {
-        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      const { data } = await apiClient.put('/updateRole', {
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
       });
       console.log(data);
       if (data.success) {
-        localStorage.setItem("role", "teacher");
+        localStorage.setItem('role', 'teacher');
         setIsTeacher(true);
         toast.success(data.message);
       } else {
@@ -62,7 +62,7 @@ const Navbar = ({ data }) => {
             src={logo}
             alt="logo"
             className="h-[40px]"
-            onClick={() => navigate("/")}
+            onClick={() => navigate('/')}
           />
         </Link>
 
@@ -102,8 +102,7 @@ const Navbar = ({ data }) => {
             />
             <button
               type="submit"
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-            >
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
               <Search className="w-5 h-5" />
             </button>
           </form>
@@ -111,30 +110,28 @@ const Navbar = ({ data }) => {
           <div className="flex items-center space-x-4">
             {isLoggedIn && (
               <>
-<button
-  className="text-gray-500 hover:text-blue-600"
-  onClick={() => {
-    if (isAdmin) {
-      navigate("/admin");
-    } else if (isTeacher) {
-      navigate("/teacher");
-    } else {
-      navigate("/teacherRequest");
-    }
-  }}
->
-  {isAdmin
-    ? "Admin Dashboard"
-    : isTeacher
-    ? "Teacher Dashboard"
-    : "Become a Teacher"}
-</button>
+                <button
+                  className="text-gray-500 hover:text-blue-600"
+                  onClick={() => {
+                    if (isAdmin) {
+                      navigate('/admin');
+                    } else if (isTeacher) {
+                      navigate('/teacher');
+                    } else {
+                      navigate('/teacherRequest');
+                    }
+                  }}>
+                  {isAdmin
+                    ? 'Admin Dashboard'
+                    : isTeacher
+                    ? 'Teacher Dashboard'
+                    : 'Become a Teacher'}
+                </button>
 
                 <span className="text-gray-500">|</span>
                 <Link
                   to="/my-enrollments"
-                  className="text-gray-500 hover:text-blue-600"
-                >
+                  className="text-gray-500 hover:text-blue-600">
                   My Enrollments
                 </Link>
               </>
@@ -144,15 +141,13 @@ const Navbar = ({ data }) => {
             {isLoggedIn ? (
               <button
                 onClick={handleSignOut}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-              >
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
                 Sign Out
               </button>
             ) : (
               <button
-                onClick={() => navigate("/auth/signin")}
-                className="bg-black text-white px-4 py-2 rounded-md hover:bg-blue-700"
-              >
+                onClick={() => navigate('/auth/signin')}
+                className="bg-black text-white px-4 py-2 rounded-md hover:bg-blue-700">
                 Sign In
               </button>
             )}
@@ -170,8 +165,7 @@ const Navbar = ({ data }) => {
         <div className="md:hidden flex flex-col items-center mt-4 space-y-4">
           <form
             onSubmit={onSearchHandler}
-            className="relative flex w-full max-w-xs"
-          >
+            className="relative flex w-full max-w-xs">
             <input
               onChange={(e) => setInput(e.target.value)}
               value={input}
@@ -181,8 +175,7 @@ const Navbar = ({ data }) => {
             />
             <button
               type="submit"
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-            >
+              className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
               <Search className="w-5 h-5" />
             </button>
           </form>
@@ -190,61 +183,53 @@ const Navbar = ({ data }) => {
           <Link
             to="/"
             className="text-black hover:text-blue-600"
-            onClick={() => setMenuOpen(false)}
-          >
+            onClick={() => setMenuOpen(false)}>
             Home
           </Link>
           <Link
             to="/mentor"
             className="text-black hover:text-blue-600"
-            onClick={() => setMenuOpen(false)}
-          >
+            onClick={() => setMenuOpen(false)}>
             Mentors
           </Link>
           <Link
             to="/course-list"
             className="text-black hover:text-blue-600"
-            onClick={() => setMenuOpen(false)}
-          >
+            onClick={() => setMenuOpen(false)}>
             Courses
           </Link>
           <Link
             to="/about-us"
             className="text-black hover:text-blue-600"
-            onClick={() => setMenuOpen(false)}
-          >
+            onClick={() => setMenuOpen(false)}>
             About Us
           </Link>
 
           {isLoggedIn && (
             <>
-             <button
-  className="text-gray-500 hover:text-blue-600"
-  onClick={() => {
-    if (isAdmin) {
-      navigate("/admin");
-    } else if (isTeacher) {
-      navigate("/teacher");
-    } else {
-     
-      navigate("/teacherRequest");
-    }
-  }}
->
-  {isAdmin
-    ? "Admin Dashboard"
-    : isTeacher
-    ? "Teacher Dashboard"
-    : "Become a Teacher"}
-</button>
-<Link
-  to="/my-enrollments"
-  className="text-gray-500 hover:text-blue-600"
-  onClick={() => setMenuOpen(false)}
->
-  My Enrollments
-</Link>
-
+              <button
+                className="text-gray-500 hover:text-blue-600"
+                onClick={() => {
+                  if (isAdmin) {
+                    navigate('/admin');
+                  } else if (isTeacher) {
+                    navigate('/teacher');
+                  } else {
+                    navigate('/teacherRequest');
+                  }
+                }}>
+                {isAdmin
+                  ? 'Admin Dashboard'
+                  : isTeacher
+                  ? 'Teacher Dashboard'
+                  : 'Become a Teacher'}
+              </button>
+              <Link
+                to="/my-enrollments"
+                className="text-gray-500 hover:text-blue-600"
+                onClick={() => setMenuOpen(false)}>
+                My Enrollments
+              </Link>
             </>
           )}
 
@@ -254,18 +239,16 @@ const Navbar = ({ data }) => {
                 handleSignOut();
                 setMenuOpen(false);
               }}
-              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
-            >
+              className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700">
               Sign Out
             </button>
           ) : (
             <button
               onClick={() => {
-                navigate("/auth/signin");
+                navigate('/auth/signin');
                 setMenuOpen(false);
               }}
-              className="bg-black text-white px-4 py-2 rounded-md hover:bg-blue-700"
-            >
+              className="bg-black text-white px-4 py-2 rounded-md hover:bg-blue-700">
               Sign In
             </button>
           )}

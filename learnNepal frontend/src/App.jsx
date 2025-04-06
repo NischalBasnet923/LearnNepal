@@ -14,6 +14,7 @@ import StudentEnrolled from './pages/teacher/StudentEnrolled';
 import Navbar from './components/student/Navbar';
 import Signin from './pages/authentication/Signin';
 import Auth from './pages/authentication/Auth';
+import TeacherRequestDetails from './pages/admin/TeacherRequestDetails';
 import Signup from './pages/authentication/Signup';
 import ForgotPassword from './pages/authentication/ForgotPass';
 import OTP from './pages/authentication/OTP';
@@ -26,6 +27,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import 'quill/dist/quill.snow.css';
 import VerifyTeacher from './pages/teacher/verfiyTeacher';
 import Chat from './pages/teacher/chat';
+import UpdateCourse from './pages/teacher/UpdateCourse';
 
 const App = () => {
   const isTeacherRoute = useMatch('/teacher/*');
@@ -50,10 +52,15 @@ const App = () => {
           <Route path="my-courses" element={<MyCourses />} />
           <Route path="message" element={<Chat />} />
           <Route path="student-enrolled" element={<StudentEnrolled />} />
+          <Route path="update-course/:id" element={<UpdateCourse />} />
         </Route>
         <Route path="/admin" element={<Admin />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="request" element={<Request />} />
+          <Route
+            path="teacher-request/:id"
+            element={<TeacherRequestDetails />}
+          />
         </Route>
         <Route path="/auth" element={<Auth />}>
           <Route path="signin" element={<Signin />} />

@@ -1,27 +1,28 @@
-import { useContext, useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { AppContext } from "../../context/AppContext";
-import Loading from "../../components/student/Loading";
-import apiClient from "../../api/axios";
-import { toast } from "react-toastify";
-import humanizeDuration from "humanize-duration";
-import time from "../../assets/image/time_left.svg";
-import rating from "../../assets/image/rating_star.svg";
-import stripe from "../../assets/image/stripe.png";
-import khalti from "../../assets/image/khalti.png";
-import null_star from "../../assets/image/star_dull_icon.svg";
-import time_clock from "../../assets/image/time_clock_icon.svg";
-import book from "../../assets/image/lesson_icon.svg";
-import Footer from "../../components/student/Footer";
+import { useContext, useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { AppContext } from '../../context/AppContext';
+import Loading from '../../components/student/Loading';
+import apiClient from '../../api/axios';
+import { toast } from 'react-toastify';
+import humanizeDuration from 'humanize-duration';
+import time from '../../assets/image/time_left.svg';
+import rating from '../../assets/image/rating_star.svg';
+import stripe from '../../assets/image/stripe.png';
+import khalti from '../../assets/image/khalti.png';
+import null_star from '../../assets/image/star_dull_icon.svg';
+import time_clock from '../../assets/image/time_clock_icon.svg';
+import book from '../../assets/image/lesson_icon.svg';
+import Footer from '../../components/student/Footer';
 
 const CourseDetails = () => {
-  const { courseId } = useParams();            
-  const [userData, setUserData] = useState({}); 
-  const [coursesData, setCoursesData] = useState(null); 
-  const [openSections, setOpenSections] = useState({});  
+  const { courseId } = useParams();
+  const [userData, setUserData] = useState({});
+  const [coursesData, setCoursesData] = useState(null);
+  const [openSections, setOpenSections] = useState({});
   const [isAlreadyEnrolled, setIsAlreadyEnrolled] = useState(false);
-  const [playerData, setPlayerData] = useState(null);    
-  const [showPaymentPopup, setShowPaymentPopup] = useState(false); 
+  const [playerData, setPlayerData] = useState(null);
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
+  const [usersMap, setUsersMap] = useState({}); // Store user data for ratings
 
   const {
     calculateRating,
@@ -33,8 +34,8 @@ const CourseDetails = () => {
 
   const fetchUserData = async () => {
     try {
-      const { data } = await apiClient.get("/user", {
-        headers: { Authorization: "Bearer " + localStorage.getItem("token") },
+      const { data } = await apiClient.get('/user', {
+        headers: { Authorization: 'Bearer ' + localStorage.getItem('token') },
       });
 
       if (data.success) {
@@ -50,9 +51,14 @@ const CourseDetails = () => {
 
   const fetchCourseData = async () => {
     try {
-      const { data } = await apiClient.get("/course/" + courseId);
+      const { data } = await apiClient.get('/course/' + courseId);
       if (data.success) {
         setCoursesData(data.courseData);
+
+        // Fetch user information for each rating
+        if (data.courseData.ratings && data.courseData.ratings.length > 0) {
+          fetchRatingUsers(data.courseData.ratings);
+        }
       } else {
         toast.error(data.message);
       }
@@ -61,27 +67,50 @@ const CourseDetails = () => {
     }
   };
 
+  // Fetch user information for ratings
+  const fetchRatingUsers = async (ratings) => {
+    try {
+      const userIds = ratings.map((rating) => rating.userId);
+      const uniqueUserIds = [...new Set(userIds)];
+
+      const users = {};
+
+      // In a real app, this would be a batch request to fetch multiple users
+      // For simplicity, we're doing it one by one
+      for (const userId of uniqueUserIds) {
+        const { data } = await apiClient.get(`/user/${userId}`);
+        if (data.success) {
+          users[userId] = data.user;
+        }
+      }
+
+      setUsersMap(users);
+    } catch (error) {
+      console.error('Error fetching user information for ratings:', error);
+    }
+  };
+
   const handlePayment = async (method) => {
     try {
       // Must login first
       if (!userData) {
-        return toast.warn("Please login to enroll in the course");
+        return toast.warn('Please login to enroll in the course');
       }
       // If user is already enrolled
       if (isAlreadyEnrolled) {
-        return toast.warn("You are already enrolled in this course");
+        return toast.warn('You are already enrolled in this course');
       }
 
       // Payment Endpoint => Stripe or Khalti
-      const token = localStorage.getItem("token");
+      const token = localStorage.getItem('token');
       const paymentEndpoint =
-        method === "stripe" ? "/user/purchase" : "/purchase-course/khalti";
+        method === 'stripe' ? '/user/purchase' : '/purchase-course/khalti';
 
       // Send the courseId to backend
       const { data } = await apiClient.post(
         paymentEndpoint,
         { courseId },
-        { headers: { Authorization: "Bearer " + token } }
+        { headers: { Authorization: 'Bearer ' + token } }
       );
 
       // If success => redirect to payment link
@@ -92,7 +121,7 @@ const CourseDetails = () => {
         toast.error(data.message);
       }
     } catch (error) {
-      toast.error("Payment failed. Please try again.");
+      toast.error('Payment failed. Please try again.');
     } finally {
       setShowPaymentPopup(false); // Hide the popup no matter what
     }
@@ -119,6 +148,19 @@ const CourseDetails = () => {
     }));
   };
 
+  // Generate star rating display
+  const renderStars = (rating) => {
+    return (
+      <div className="flex">
+        {[...Array(5)].map((_, i) => (
+          <span key={i} className="text-lg">
+            {i < rating ? '★' : '☆'}
+          </span>
+        ))}
+      </div>
+    );
+  };
+
   return coursesData ? (
     <>
       {/* Main Container */}
@@ -136,8 +178,7 @@ const CourseDetails = () => {
             className="pt-4 md:text-base text-sm"
             dangerouslySetInnerHTML={{
               __html: coursesData.courseDescription.slice(0, 200),
-            }}
-          ></p>
+            }}></p>
 
           <div className="flex items-center  space-x-2 pt-3 pb-1 text-sm">
             {/* Overall Rating */}
@@ -146,24 +187,24 @@ const CourseDetails = () => {
             {/* Star Icons (★ / ☆) */}
             {[...Array(5)].map((_, i) => (
               <p key={i}>
-                {i < Math.floor(calculateRating(coursesData)) ? "⭐" : "☆"}
+                {i < Math.floor(calculateRating(coursesData)) ? '⭐' : '☆'}
               </p>
             ))}
             {/* # of Ratings */}
             <p className="text-blue-600">
-              ({coursesData.ratings.length}{" "}
-              {coursesData.ratings.length > 1 ? "ratings" : "rating"})
+              ({coursesData.ratings.length}{' '}
+              {coursesData.ratings.length > 1 ? 'ratings' : 'rating'})
             </p>
             {/* # of Students Enrolled */}
             <p>
-              {coursesData.enrollments.length}{" "}
-              {coursesData.enrollments.length > 1 ? "students" : "student"}
+              {coursesData.enrollments.length}{' '}
+              {coursesData.enrollments.length > 1 ? 'students' : 'student'}
             </p>
           </div>
 
           {/* Teacher Name */}
           <p>
-            Course by{" "}
+            Course by{' '}
             <span className="text-blue-600 underline">
               {coursesData.teacher.username}
             </span>
@@ -177,20 +218,17 @@ const CourseDetails = () => {
               {coursesData.chapters.map((chapter, index) => (
                 <div
                   key={index}
-                  className="border border-gray-300 bg-white mb-2 rounded"
-                >
+                  className="border border-gray-300 bg-white mb-2 rounded">
                   {/* Chapter Title */}
                   <div
                     className="flex items-center justify-between px-4 py-3 cursor-pointer select-none"
-                    onClick={() => toggleSection(index)}
-                  >
+                    onClick={() => toggleSection(index)}>
                     <div className="flex items-center gap-2 px-2">
                       <p
                         className={`transform transition-transform ${
-                          openSections[index] ? "rotate-180" : ""
-                        }`}
-                      >
-                        {} ▾{" "}
+                          openSections[index] ? 'rotate-180' : ''
+                        }`}>
+                        {} ▾{' '}
                       </p>
                       <p className="font-medium md:text-base text-sm">
                         {chapter.chapterTitle}
@@ -198,16 +236,15 @@ const CourseDetails = () => {
                     </div>
 
                     <p className="text-sm md:text-default">
-                      {chapter.lectures.length} lectures -{" "}
+                      {chapter.lectures.length} lectures -{' '}
                       {calculateChapterTime(chapter)}
                     </p>
                   </div>
 
                   <div
                     className={`overflow-hidden transition-all duration-300 ${
-                      openSections[index] ? "max-h-96" : "max-h-0"
-                    }`}
-                  >
+                      openSections[index] ? 'max-h-96' : 'max-h-0'
+                    }`}>
                     <ul className="list-disc md:pl-10 pl-44 pr-444 py-2 text-gray-600 border-t border-gray-300">
                       {chapter.lectures.map((lecture, i) => (
                         <li key={i} className="flex items-start gap-2 py-1">
@@ -221,12 +258,10 @@ const CourseDetails = () => {
                                 <p
                                   onClick={() =>
                                     setPlayerData({
-                                
                                       videoUrl: lecture.contentUrl,
                                     })
                                   }
-                                  className="text-blue-500 cursor-pointer"
-                                >
+                                  className="text-blue-500 cursor-pointer">
                                   Preview
                                 </p>
                               )}
@@ -234,7 +269,7 @@ const CourseDetails = () => {
                               <p>
                                 {humanizeDuration(
                                   lecture.duration * 60 * 1000,
-                                  { units: ["h", "m"] }
+                                  { units: ['h', 'm'] }
                                 )}
                               </p>
                             </div>
@@ -248,8 +283,59 @@ const CourseDetails = () => {
             </div>
           </div>
 
+          {/* Student Ratings and Reviews Section */}
+          <div className="py-10 text-gray-800">
+            <h2 className="text-xl font-semibold mb-6">
+              Student Ratings & Reviews
+            </h2>
+
+            {coursesData.ratings && coursesData.ratings.length > 0 ? (
+              <div className="space-y-6">
+                {coursesData.ratings.map((ratingItem) => (
+                  <div
+                    key={ratingItem.id}
+                    className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                          {usersMap[ratingItem.userId]?.username?.charAt(0) ||
+                            '?'}
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-800">
+                            {usersMap[ratingItem.userId]?.username || 'Student'}
+                          </p>
+                          <div className="flex items-center text-amber-400 mt-1">
+                            {renderStars(ratingItem.rating)}
+                          </div>
+                        </div>
+                      </div>
+                      <span className="text-sm text-gray-500">
+                        {new Date(
+                          ratingItem.createdAt || new Date()
+                        ).toLocaleDateString()}
+                      </span>
+                    </div>
+
+                    {ratingItem.comment && (
+                      <div className="mt-3 text-gray-700">
+                        <p>{ratingItem.comment}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center">
+                <p className="text-gray-500">
+                  No ratings yet. Be the first to rate this course!
+                </p>
+              </div>
+            )}
+          </div>
+
           {/* Additional Course Description (Full) */}
-          <div className="py-20 text-sm md:text-default ">
+          <div className="py-10 text-sm md:text-default ">
             <h3 className="text-xl font-semibold text-gray-800">
               Course Description
             </h3>
@@ -257,18 +343,13 @@ const CourseDetails = () => {
               className="pt-3 rich-text"
               dangerouslySetInnerHTML={{
                 __html: coursesData.courseDescription,
-              }}
-            ></p>
+              }}></p>
           </div>
         </div>
 
         <div className="max-w-[424px] z-10 shadow-custom-card rounded-t md:rounded-none overflow-hidden bg-white min-w-[300px] sm:min-w-[420px]">
           {playerData ? (
-            <video
-              className="w-full aspect-video"
-              controls
-              autoPlay
-            >
+            <video className="w-full aspect-video" controls autoPlay>
               {/* Source is your uploaded video URL (MP4) */}
               <source src={playerData.videoUrl} type="video/mp4" />
               Your browser does not support the video tag.
@@ -279,13 +360,6 @@ const CourseDetails = () => {
           )}
 
           <div className="p-5">
-            {/* TIME LEFT / PRICE INFO */}
-            <div className="flex items-center gap-2">
-              <img className="w-3.5" src={time} alt="time_left" />
-              <p className="text-red-500">
-                <span className="font-medium">5 days</span> left at this price!
-              </p>
-            </div>
             <div className="flex gap-3 items-center pt-2">
               <p className="text-gray-800 md:text-4xl text-2xl font-semibold">
                 {currency}
@@ -308,7 +382,7 @@ const CourseDetails = () => {
               {/* RATING */}
               <div className="flex items-center gap-1">
                 <img
-                  src={coursesData.ratings > 1 ? rating : null_star}
+                  src={coursesData.ratings.length > 0 ? rating : null_star}
                   alt="start icon"
                 />
                 <p>{calculateRating(coursesData)}</p>
@@ -334,24 +408,14 @@ const CourseDetails = () => {
             {/* Enroll Button => opens Payment Popup */}
             <button
               onClick={() => setShowPaymentPopup(true)}
-              className="md:mt-6 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium"
-            >
-              {isAlreadyEnrolled ? "Already Enrolled" : "Enroll Now"}
+              className={`md:mt-6 mt-4 w-full py-3 rounded font-medium ${
+                isAlreadyEnrolled
+                  ? 'bg-green-600 text-white cursor-default'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+              disabled={isAlreadyEnrolled}>
+              {isAlreadyEnrolled ? 'Already Enrolled' : 'Enroll Now'}
             </button>
-
-            {/* Additional Info => static bullets */}
-            <div className="pt-6">
-              <p className="md:text-xl text-lg font-medium text-gray-800">
-                Whats in the course?
-              </p>
-              <ul className="ml-4 pt-2 text-sm md:text-default list-disc text-gray-500">
-                <li>oshdg sdhngkj skdjng</li>
-                <li>oshdg sdhngkj skdjng</li>
-                <li>oshdg sdhngkj skdjng</li>
-                <li>oshdg sdhngkj skdjng</li>
-                <li>oshdg sdhngkj skdjng</li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>
@@ -367,17 +431,15 @@ const CourseDetails = () => {
             <div className="flex justify-center gap-4">
               {/* Stripe Payment Button */}
               <button
-                onClick={() => handlePayment("stripe")}
-                className="bg-gray-100 hover:bg-gray-200 transition-all px-6 py-6 rounded-lg flex flex-col items-center justify-center shadow-md w-36"
-              >
+                onClick={() => handlePayment('stripe')}
+                className="bg-gray-100 hover:bg-gray-200 transition-all px-6 py-6 rounded-lg flex flex-col items-center justify-center shadow-md w-36">
                 <img src={stripe} alt="Stripe" className="w-20 h-auto" />
               </button>
 
               {/* Khalti Payment Button */}
               <button
-                onClick={() => handlePayment("khalti")}
-                className="bg-purple-100 hover:bg-purple-200 transition-all px-6 py-3 rounded-lg flex flex-col items-center justify-center shadow-md w-36"
-              >
+                onClick={() => handlePayment('khalti')}
+                className="bg-purple-100 hover:bg-purple-200 transition-all px-6 py-3 rounded-lg flex flex-col items-center justify-center shadow-md w-36">
                 <img src={khalti} alt="Khalti" className="w-20 h-auto" />
               </button>
             </div>
@@ -385,8 +447,7 @@ const CourseDetails = () => {
             {/* Cancel Button */}
             <button
               onClick={() => setShowPaymentPopup(false)}
-              className="mt-6 text-gray-600 hover:text-red-500 text-sm font-medium"
-            >
+              className="mt-6 text-gray-600 hover:text-red-500 text-sm font-medium">
               Cancel
             </button>
           </div>

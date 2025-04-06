@@ -46,10 +46,11 @@ const approveTeacher = async (req, res) => {
 
 const declineTeacher = async (req, res) => {
   try {
-    const { requestId } = req.body;
+    const { requestId, message } = req.body;
+    console.log(req.body);
     const request = await prisma.teacherRequest.update({
       where: { id: requestId },
-      data: { isVerified: false },
+      data: { isVerified: false, message: message },
     });
     return res.status(200).json({
       success: true,
