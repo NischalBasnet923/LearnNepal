@@ -7,7 +7,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 model User {
   id               String           @id @default(cuid())
   username         String
@@ -40,6 +39,7 @@ model TeacherRequest {
   expertise   String
   certificate String
   isVerified  Boolean
+  message     String?
   createdAt DateTime? @default(now())
   updatedAt DateTime? @updatedAt
   userId      String

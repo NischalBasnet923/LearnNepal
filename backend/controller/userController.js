@@ -265,6 +265,23 @@ const getUserCourseProgress = async (req, res) => {
   }
 };
 
+const getRequestsTeacher = async (req, res) => {
+  try {
+    const usersId = req.user.id;
+    console.log(usersId);
+    const request = await prisma.teacherRequest.findFirst({
+      where: {
+        userId: usersId,
+      },
+    });
+
+    res.status(200).json({ success: true, request });
+  } catch (error) {
+    console.error('Error fetching requests:', error.message);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 //add user Rating to course
 const addUserRatingToCourse = async (req, res) => {
   try {
@@ -344,4 +361,5 @@ module.exports = {
   updateUserCourseProgress,
   getUserCourseProgress,
   addUserRatingToCourse,
+  getRequestsTeacher,
 };

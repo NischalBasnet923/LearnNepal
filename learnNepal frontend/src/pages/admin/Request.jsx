@@ -3,8 +3,10 @@ import apiClient from '../../api/axios';
 import { AppContext } from '../../context/AppContext';
 import { toast } from 'react-toastify';
 import Loading from '../../components/student/Loading';
+import { useNavigate } from 'react-router-dom';
 
 const Request = () => {
+  const navigate = useNavigate();
   const [requestData, setRequestData] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const { isAdmin } = useContext(AppContext);
@@ -15,7 +17,7 @@ const Request = () => {
     dateFrom: '',
     dateTo: '',
     expertise: '',
-    status: '', // "verified", "pending", or ""
+    status: '', // "verified", "pending", "declined" or ""
   });
 
   const fetchRequests = async () => {
@@ -42,13 +44,11 @@ const Request = () => {
     }
   }, [isAdmin]);
 
-  // Filter requests when filters or requestData changes
   useEffect(() => {
     if (!requestData.length) return;
 
     let filtered = [...requestData];
 
-    // Filter by date range
     if (filters.dateFrom) {
       const fromDate = new Date(filters.dateFrom);
       filtered = filtered.filter((request) => {
@@ -67,7 +67,6 @@ const Request = () => {
       });
     }
 
-    // Filter by expertise
     if (filters.expertise.trim()) {
       const expertiseSearch = filters.expertise.toLowerCase().trim();
       filtered = filtered.filter((request) =>
@@ -75,17 +74,19 @@ const Request = () => {
       );
     }
 
-    // Filter by status
     if (filters.status === 'verified') {
       filtered = filtered.filter((request) => request.isVerified);
     } else if (filters.status === 'pending') {
-      filtered = filtered.filter((request) => !request.isVerified);
+      filtered = filtered.filter(
+        (request) => !request.isVerified && !request.message
+      );
+    } else if (filters.status === 'declined') {
+      filtered = filtered.filter((request) => request.message);
     }
 
     setFilteredData(filtered);
   }, [filters, requestData]);
 
-  // Handle filter changes
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters((prev) => ({
@@ -94,7 +95,6 @@ const Request = () => {
     }));
   };
 
-  // Reset all filters
   const resetFilters = () => {
     setFilters({
       dateFrom: '',
@@ -104,7 +104,6 @@ const Request = () => {
     });
   };
 
-  // Function to handle image loading errors
   const handleImageError = (id) => {
     setImageError((prev) => ({
       ...prev,
@@ -112,10 +111,9 @@ const Request = () => {
     }));
   };
 
-  // Function to display certificate file name
   const getCertificateFileName = (url) => {
     if (!url) return 'No certificate';
-    // Extract filename from URL
+
     try {
       const urlParts = new URL(url);
       const pathSegments = urlParts.pathname.split('/');
@@ -126,13 +124,11 @@ const Request = () => {
     }
   };
 
-  // Function to get certificate URL (no need to modify the path)
   const getCertificateUrl = (url) => {
     if (!url) return null;
     return url; // Return the URL as is, since it's already a complete URL
   };
 
-  // Function to handle certificate preview
   const handlePreviewClick = (request) => {
     setPreviewImage({
       url: getCertificateUrl(request.certificate),
@@ -142,53 +138,52 @@ const Request = () => {
     setShowPreview(true);
   };
 
-  // Function to close the preview modal
   const closePreview = () => {
     setShowPreview(false);
     setPreviewImage(null);
   };
 
-  // Functions to handle verification actions
-  const handleVerify = async (id) => {
-    try {
-      const token = localStorage.getItem('token');
-      const payload = {
-        requestId: id,
-      };
-      const { data } = await apiClient.put('/approveTeacher', payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      if (data.success) {
-        toast.success('Teacher verified successfully');
-        fetchRequests(); // Refresh the list
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message || 'Failed to verify teacher');
-    }
+  const getRequestStatus = (request) => {
+    if (request.isVerified) return 'verified';
+    if (request.message) return 'declined';
+    return 'pending';
   };
 
-  const handleReject = async (id) => {
-    try {
-      const token = localStorage.getItem('token');
-      const payload = {
-        requestId: id,
-      };
-      const { data } = await apiClient.put('/declineTeacher', payload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+  const navigateToDetailPage = (request) => {
+    navigate(`/admin/teacher-request/${request.id}`, {
+      state: { requestData: request },
+    });
+  };
 
-      if (data.success) {
-        toast.success('Teacher request rejected');
-        fetchRequests(); // Refresh the list
-      } else {
-        toast.error(data.message);
-      }
-    } catch (error) {
-      toast.error(error.message || 'Failed to reject teacher');
-    }
+  const showDeclineReason = (request) => {
+    if (!request.message) return null;
+
+    return (
+      <div
+        className="flex items-center text-red-600 cursor-pointer"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/admin/teacher-request/${request.id}`, {
+            state: {
+              requestData: request,
+              showReason: true,
+            },
+          });
+        }}>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-4 w-4 mr-1"
+          viewBox="0 0 20 20"
+          fill="currentColor">
+          <path
+            fillRule="evenodd"
+            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+            clipRule="evenodd"
+          />
+        </svg>
+        <span className="text-xs">View reason</span>
+      </div>
+    );
   };
 
   return requestData ? (
@@ -238,6 +233,7 @@ const Request = () => {
               <option value="">All Statuses</option>
               <option value="verified">Verified</option>
               <option value="pending">Pending</option>
+              <option value="declined">Declined</option>
             </select>
           </div>
 
@@ -309,7 +305,10 @@ const Request = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredData.map((request, index) => (
-                <tr key={request.id} className="hover:bg-gray-50">
+                <tr
+                  key={request.id}
+                  className="hover:bg-gray-50 cursor-pointer"
+                  onClick={() => navigateToDetailPage(request)}>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{index + 1}</div>
                   </td>
@@ -333,7 +332,10 @@ const Request = () => {
                       <div className="flex items-center">
                         <div
                           className="h-12 w-16 bg-gray-100 rounded cursor-pointer border border-gray-300 flex items-center justify-center overflow-hidden mr-2"
-                          onClick={() => handlePreviewClick(request)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewClick(request);
+                          }}
                           title="Click to preview certificate">
                           {imageError[request.id] ? (
                             <div className="text-gray-500 text-xs text-center p-1">
@@ -363,7 +365,10 @@ const Request = () => {
                         </div>
                         <span
                           className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer"
-                          onClick={() => handlePreviewClick(request)}>
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handlePreviewClick(request);
+                          }}>
                           {getCertificateFileName(request.certificate)}
                         </span>
                       </div>
@@ -374,34 +379,45 @@ const Request = () => {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        request.isVerified
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}>
-                      {request.isVerified ? 'Verified' : 'Pending'}
-                    </span>
+                    <div className="flex flex-col space-y-1">
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          request.isVerified
+                            ? 'bg-green-100 text-green-800'
+                            : request.message
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                        {request.isVerified
+                          ? 'Verified'
+                          : request.message
+                          ? 'Declined'
+                          : 'Pending'}
+                      </span>
+                      {request.message && showDeclineReason(request)}
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {!request.isVerified ? (
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleVerify(request.id)}
-                          className="text-green-600 hover:text-green-900 bg-green-100 p-2 rounded-md"
-                          title="Verify">
-                          ✓
-                        </button>
-                        <button
-                          onClick={() => handleReject(request.id)}
-                          className="text-red-600 hover:text-red-900 bg-red-100 p-2 rounded-md"
-                          title="Reject">
-                          ✗
-                        </button>
-                      </div>
-                    ) : (
-                      <span className="text-gray-500">-</span>
-                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click
+                        navigateToDetailPage(request);
+                      }}
+                      className="text-blue-600 hover:text-blue-900 bg-blue-100 px-3 py-2 rounded-md flex items-center">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="h-4 w-4 mr-1"
+                        viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+                        <path
+                          fillRule="evenodd"
+                          d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      View
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -418,7 +434,6 @@ const Request = () => {
           </table>
         </div>
 
-        {/* Mobile view for requests */}
         <div className="sm:hidden">
           <div className="text-center text-gray-500 py-4">
             Please view on larger screen for complete table

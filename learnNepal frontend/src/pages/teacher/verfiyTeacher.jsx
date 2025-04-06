@@ -1,15 +1,17 @@
-import apiClient from "../../api/axios";
-import { useState, useEffect } from "react";
-import letter from "../../assets/image/undraw_letter_ombg.png";
+import apiClient from '../../api/axios';
+import { useState, useEffect } from 'react';
+import letter from '../../assets/image/undraw_letter_ombg.png';
+
 export default function VerifyTeacher() {
   const [hasRequest, setHasRequest] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [declineMessage, setDeclineMessage] = useState(null);
 
   const [formData, setFormData] = useState({
-    fullname: "",
-    education: "",
-    expertise: "",
-    experience: "",
+    fullname: '',
+    education: '',
+    expertise: '',
+    experience: '',
   });
   const [profileImage, setProfileImage] = useState(null);
   const [certificate, setCertificate] = useState(null);
@@ -19,19 +21,38 @@ export default function VerifyTeacher() {
   useEffect(() => {
     const checkRequestStatus = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await apiClient.get("/teacher-request", {
+        const token = localStorage.getItem('token');
+
+        // Original request to check if user has a request
+        const res = await apiClient.get('/teacher-request', {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         setHasRequest(res.data.hasRequest);
+
+        // Additional check for decline status from the new endpoint
+        if (res.data.hasRequest) {
+          const { data } = await apiClient.get('/user/getRequests', {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          console.log(data.request.message);
+          if (data.request.message) {
+            const latestRequest = data.request.message;
+            if (latestRequest) {
+              setDeclineMessage(latestRequest);
+            }
+          }
+        }
       } catch (err) {
-        console.error("Error checking teacher request:", err);
+        console.error('Error checking teacher request:', err);
       } finally {
         setLoading(false);
       }
     };
+
     checkRequestStatus();
   }, []);
 
@@ -59,40 +80,46 @@ export default function VerifyTeacher() {
     e.preventDefault();
     try {
       const data = new FormData();
-      data.append("fullname", formData.fullname);
-      data.append("education", formData.education);
-      data.append("expertise", formData.expertise);
-      data.append("experience", formData.experience);
+      data.append('fullname', formData.fullname);
+      data.append('education', formData.education);
+      data.append('expertise', formData.expertise);
+      data.append('experience', formData.experience);
 
       if (profileImage) {
-        data.append("profileImage", profileImage);
+        data.append('profileImage', profileImage);
       }
       if (certificate) {
-        data.append("certificate", certificate);
+        data.append('certificate', certificate);
       }
 
-      const token = localStorage.getItem("token");
-      const config = { headers: { "Content-Type": "multipart/form-data" } };
+      const token = localStorage.getItem('token');
+      const config = { headers: { 'Content-Type': 'multipart/form-data' } };
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
 
-      await apiClient.post("/verify-teacher", data, config);
+      await apiClient.post('/verify-teacher', data, config);
 
       setFormData({
-        fullname: "",
-        education: "",
-        expertise: "",
-        experience: "",
+        fullname: '',
+        education: '',
+        expertise: '',
+        experience: '',
       });
       setProfileImage(null);
       setCertificate(null);
       setProfileImagePreview(null);
       setCertificatePreview(null);
       setHasRequest(true);
+      setDeclineMessage(null);
     } catch (err) {
-      console.error("Error submitting teacher request:", err);
+      console.error('Error submitting teacher request:', err);
     }
+  };
+
+  const resetApplication = () => {
+    setHasRequest(false);
+    setDeclineMessage(null);
   };
 
   if (loading) {
@@ -100,9 +127,36 @@ export default function VerifyTeacher() {
   }
 
   if (hasRequest) {
+    if (declineMessage) {
+      // Show declined message if the request was declined
+      return (
+        <div className="w-[40%] m-auto mt-10 text-center">
+          <img src={letter} alt="" className="w-56 h-56 mx-auto mb-4" />
+          <h2 className="text-2xl font-medium mb-4 text-red-600">
+            Your teacher verification request has been declined.
+          </h2>
+          <div className="bg-red-50 border border-red-200 rounded-md p-4 mb-6">
+            <h3 className="font-medium text-gray-800 mb-2">
+              Reason for decline:
+            </h3>
+            <p className="text-gray-700">{declineMessage}</p>
+          </div>
+          <p className="text-gray-600 mb-6">
+            You can address the issues mentioned and submit a new application.
+          </p>
+          <button
+            onClick={resetApplication}
+            className="bg-blue-500 text-white py-2 px-6 rounded font-medium">
+            Submit New Application
+          </button>
+        </div>
+      );
+    }
+
+    // Show pending message if the request is still pending
     return (
       <div className="w-[40%] m-auto mt-10 text-center">
-        <img src={letter} alt="" className="w-56 h-56 mx-auto mb-4"/>
+        <img src={letter} alt="" className="w-56 h-56 mx-auto mb-4" />
         <h2 className="text-2xl font-medium mb-4 text-gray-800">
           You have already submitted a teacher request.
         </h2>
@@ -110,12 +164,8 @@ export default function VerifyTeacher() {
           Our team will review it shortly. Thank you!
         </p>
         <button
-          onClick={() => {
-            // Toggle back so form is shown again
-            setHasRequest(false);
-          }}
-          className="bg-blue-500 text-white py-2 px-6 rounded font-medium"
-        >
+          onClick={resetApplication}
+          className="bg-blue-500 text-white py-2 px-6 rounded font-medium">
           Resend
         </button>
       </div>
@@ -143,8 +193,7 @@ export default function VerifyTeacher() {
                   className="w-12 h-12 text-gray-400"
                   fill="none"
                   stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
+                  viewBox="0 0 24 24">
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
@@ -159,8 +208,7 @@ export default function VerifyTeacher() {
                 className="w-4 h-4 text-white"
                 fill="none"
                 stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+                viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -258,8 +306,7 @@ export default function VerifyTeacher() {
                 className="w-8 h-8 text-gray-400 mb-2"
                 fill="none"
                 stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+                viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
@@ -284,8 +331,7 @@ export default function VerifyTeacher() {
         <div className="flex justify-end">
           <button
             type="submit"
-            className="bg-blue-500 text-white py-2 px-6 rounded font-medium"
-          >
+            className="bg-blue-500 text-white py-2 px-6 rounded font-medium">
             Submit Verification
           </button>
         </div>

@@ -1,4 +1,4 @@
-const prisma = require("../prismaClient");
+const prisma = require('../prismaClient');
 
 //get all courses
 const getAllCourses = async (req, res) => {
@@ -62,10 +62,10 @@ const getAllCourses = async (req, res) => {
       courses: coursesWithDuration,
     });
   } catch (error) {
-    console.log("Error fetching all courses:", error.message);
+    console.log('Error fetching all courses:', error.message);
     return res.status(500).json({
       success: false,
-      message: "Internal Server Error",
+      message: 'Internal Server Error',
     });
   }
 };
@@ -97,6 +97,7 @@ const getCourseById = async (req, res) => {
             id: true,
             userId: true,
             rating: true,
+            comment: true,
           },
         },
         enrollments: {
@@ -110,14 +111,14 @@ const getCourseById = async (req, res) => {
     if (!courseData) {
       return res
         .status(404)
-        .json({ success: false, message: "Course not found" });
+        .json({ success: false, message: 'Course not found' });
     }
 
     // Remove `lectureUrl` if `isPreviewFree` is false
     courseData.chapters.forEach((chapter) => {
       chapter.lectures.forEach((lecture) => {
         if (!lecture.isPreview) {
-          lecture.contentUrl = ""; // Set `lectureUrl` to an empty string
+          lecture.contentUrl = ''; // Set `lectureUrl` to an empty string
         }
       });
     });
@@ -127,39 +128,43 @@ const getCourseById = async (req, res) => {
       courseData,
     });
   } catch (error) {
-    console.log("Error fetching course by ID:", error.message);
+    console.log('Error fetching course by ID:', error.message);
     return res
       .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+      .json({ success: false, message: 'Internal Server Error' });
   }
 };
 
 const createCourse = async (req, res) => {
   try {
-    const {courseTitle, category} = req.body;
-    if(!courseTitle || !category){
-      return res.status(400).json({success: false, message: "Please provide course title and category"});
+    const { courseTitle, category } = req.body;
+    if (!courseTitle || !category) {
+      return res
+        .status(400)
+        .json({
+          success: false,
+          message: 'Please provide course title and category',
+        });
     }
 
     const course = await prisma.course.create({
       data: {
         courseTitle: courseTitle,
         category: category,
-        teacher: { connect: { id: req.user.id } } // If teacher is a relation
-      }
+        teacher: { connect: { id: req.user.id } }, // If teacher is a relation
+      },
     });
-    
-    
+
     return res.status(201).json({
       course,
-      message:"course create"
-    })
+      message: 'course create',
+    });
   } catch (error) {
-    console.log("Error fetching course by ID:", error.message);
+    console.log('Error fetching course by ID:', error.message);
     return res
       .status(500)
-      .json({ success: false, message: "Internal Server Error" });
+      .json({ success: false, message: 'Internal Server Error' });
   }
-}
+};
 
-module.exports = { getAllCourses, getCourseById, createCourse};
+module.exports = { getAllCourses, getCourseById, createCourse };
