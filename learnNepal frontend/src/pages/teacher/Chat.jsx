@@ -79,6 +79,7 @@ const Chat = () => {
         const response = await apiClient.get('/chat/getFriends', {
           headers: { Authorization: `Bearer ${token}` },
         });
+        console.log(response);
 
         setFriends(response.data.friends || []);
         setLoading(false);
@@ -107,6 +108,7 @@ const Chat = () => {
 
       // Fetch last message for each friend
       for (const friendId of friendIds) {
+        console.log(friendId);
         const response = await apiClient.post(
           '/chat/getMessage',
           { receiverId: friendId, limit: 1 },
@@ -114,6 +116,7 @@ const Chat = () => {
             headers: { Authorization: `Bearer ${token}` },
           }
         );
+        console.log(response);
 
         const messages = response.data.data || [];
         if (messages.length > 0) {

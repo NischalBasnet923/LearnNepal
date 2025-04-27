@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import uniqid from 'uniqid';
-import Quill from 'quill';
 import upload from '../../assets/image/file_upload_icon.svg';
 import dropdown from '../../assets/image/dropdown_icon.svg';
 import cross from '../../assets/image/cross_icon.svg';
@@ -11,20 +10,17 @@ import Loading from '../../components/student/Loading';
 const UpdateCourse = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const quillRef = useRef(null);
-  const editorRef = useRef(null);
-
   const [isLoading, setIsLoading] = useState(true);
-  const [showChapterPopup, setShowChapterPopup] = useState(false);
-  const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [courseDescriptionText, setCourseDescriptionText] = useState(''); // New state for course description
   const [courseTitle, setCourseTitle] = useState('');
   const [coursePrice, setCoursePrice] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [image, setImage] = useState(null);
   const [currentImage, setCurrentImage] = useState('');
   const [chapters, setChapters] = useState([]);
+  const [showChapterPopup, setShowChapterPopup] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
   const [showPopUp, setShowPopUp] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [currentChapterId, setCurrentChapterId] = useState(null);
   const [lectureDetails, setLectureDetails] = useState({
     lectureTitle: '',
@@ -32,30 +28,8 @@ const UpdateCourse = () => {
     lectureUrl: '',
     isPreviewFree: false,
   });
-
-  // Update these two useEffect hooks to properly handle the course description
-
-  // First hook: Initialize Quill with a callback ref approach
-  useEffect(() => {
-    if (editorRef.current && !quillRef.current) {
-      quillRef.current = new Quill(editorRef.current, {
-        theme: 'snow',
-        modules: {
-          toolbar: [
-            [{ header: [1, 2, 3, 4, 5, 6, false] }],
-            ['bold', 'italic', 'underline', 'strike'],
-            [{ list: 'ordered' }, { list: 'bullet' }],
-            [{ color: [] }, { background: [] }],
-            ['link', 'image'],
-            ['clean'],
-          ],
-        },
-      });
-
-      // Set a flag indicating Quill is ready
-      quillRef.current.isReady = true;
-    }
-  }, []);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([]);
 
   // Separate useEffect to handle the API data fetch
   useEffect(() => {
@@ -82,15 +56,14 @@ const UpdateCourse = () => {
         if (data.success && data.courseData) {
           const course = data.courseData;
 
-          // Store course description in a ref to access later
-          const courseDescription = course.courseDescription || '';
-
           // Set basic course info
           setCourseTitle(course.courseTitle || '');
           setCoursePrice(course.coursePrice || 0);
           setDiscount(course.discount || 0);
           setCurrentImage(course.courseThumbnail || '');
-
+          setCourseDescriptionText(
+            course.courseDescription?.replace(/<[^>]*>/g, '') || ''
+          );
           // Format chapters data
           if (
             course.chapters &&
@@ -123,32 +96,6 @@ const UpdateCourse = () => {
             console.log('No chapters found or empty chapters array');
             setChapters([]);
           }
-
-          // Set course description using a more reliable approach with retry
-          const setDescription = () => {
-            if (quillRef.current?.isReady && courseDescription) {
-              console.log('Setting description:', courseDescription);
-              quillRef.current.root.innerHTML = courseDescription;
-              return true;
-            }
-            return false;
-          };
-
-          // Try to set it immediately
-          if (!setDescription()) {
-            // If not successful, retry with increasing delays
-            const retryIntervals = [100, 300, 500, 1000];
-
-            retryIntervals.forEach((delay, index) => {
-              setTimeout(() => {
-                if (!setDescription() && index === retryIntervals.length - 1) {
-                  console.warn(
-                    'Failed to set course description after multiple attempts'
-                  );
-                }
-              }, delay);
-            });
-          }
         } else {
           console.log('API response issue:', data);
           toast.error('Course not found or invalid response format!');
@@ -166,7 +113,28 @@ const UpdateCourse = () => {
     fetchCourseData();
   }, [id, navigate]);
 
-  // Handle adding, toggling, and removing chapters
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/getCategory', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const data = await response.json();
+        if (data.success) {
+          setCategories(data.category);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  // Handlers for chapters and lectures
   const handleChapter = (action, chapterId) => {
     if (action === 'add') {
       setShowChapterPopup(true);
@@ -185,7 +153,6 @@ const UpdateCourse = () => {
     }
   };
 
-  // Function to confirm adding a chapter from the popup
   const confirmAddChapter = () => {
     if (newChapterTitle.trim() === '') {
       toast.error('Chapter title cannot be empty');
@@ -225,7 +192,6 @@ const UpdateCourse = () => {
     }
   };
 
-  // Add a lecture to the current chapter
   const addLecture = () => {
     setChapters(
       chapters.map((chapter) => {
@@ -261,12 +227,17 @@ const UpdateCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!image && !currentImage) {
       toast.error('Thumbnail not selected');
       return;
     }
 
-    // Format course data
+    if (selectedCategories.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+
     const formattedChapters = chapters.map(
       ({ chapterId, chapterTitle, chapterOrder, chapterContent }) => ({
         chapterId,
@@ -284,7 +255,7 @@ const UpdateCourse = () => {
             lectureId,
             lectureTitle,
             lectureDuration,
-            lectureUrl: lectureUrl instanceof File ? '' : lectureUrl, // Empty if it's a file
+            lectureUrl: lectureUrl instanceof File ? '' : lectureUrl,
             isPreviewFree,
             lectureOrder,
           })
@@ -294,20 +265,20 @@ const UpdateCourse = () => {
 
     const payload = {
       courseTitle,
-      courseDescription: quillRef.current.root.innerHTML,
+      courseDescription: courseDescriptionText, // assuming Quill was removed
       coursePrice: Number(coursePrice),
       discount: Number(discount),
-      isPublished: true,
       courseContent: formattedChapters,
+      categories: selectedCategories,
+      isPublished: true,
     };
 
     const formData = new FormData();
     formData.append('courseData', JSON.stringify(payload));
-    if (image) {
-      formData.append('image', image);
-    }
+    if (image) formData.append('image', image);
 
-    // Add Video Files
+    console.log(formData);
+
     chapters.forEach((chapter) => {
       chapter.chapterContent.forEach((lecture) => {
         if (lecture.lectureUrl instanceof File) {
@@ -318,15 +289,12 @@ const UpdateCourse = () => {
 
     try {
       const token = localStorage.getItem('token');
-
-      // Use fetch with the direct API URL
       const response = await fetch(
-        `http://localhost:3000/api/update-course/${id}`,
+        `http://localhost:3000/api/updateCourse/${id}`,
         {
           method: 'PUT',
           headers: {
             Authorization: `Bearer ${token}`,
-            // Don't set Content-Type when using FormData, browser will set it automatically with boundary
           },
           body: formData,
         }
@@ -336,40 +304,15 @@ const UpdateCourse = () => {
 
       if (data.success) {
         toast.success(data.message || 'Course updated successfully');
-        navigate('/dashboard/my-courses');
+        setTimeout(() => {
+          navigate('/teacher/my-courses');
+        }, 2000);
       } else {
         toast.error(data.message || 'Failed to update course');
       }
     } catch (error) {
       console.error('Update Error:', error);
       toast.error('An error occurred while updating the course.');
-    }
-  };
-
-  const handleDeleteCourse = async () => {
-    try {
-      const token = localStorage.getItem('token');
-
-      // Use fetch with the direct API URL
-      const response = await fetch(`http://localhost:3000/api/course/${id}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(data.message || 'Course deleted successfully');
-        navigate('/dashboard/my-courses');
-      } else {
-        toast.error(data.message || 'Failed to delete course');
-      }
-    } catch (error) {
-      console.error('Delete Error:', error);
-      toast.error('An error occurred while deleting the course.');
     }
   };
 
@@ -382,12 +325,6 @@ const UpdateCourse = () => {
       <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Update Course</h1>
-          <button
-            type="button"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="px-4 py-2 bg-red-600 text-white font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-            Delete Course
-          </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-8">
@@ -414,16 +351,41 @@ const UpdateCourse = () => {
                   required
                 />
               </div>
-
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Course Description
+                <label
+                  htmlFor="category"
+                  className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Category
                 </label>
-                <div className="border border-gray-300 rounded-md">
-                  <div ref={editorRef} className="min-h-[150px]"></div>
-                </div>
+                <select
+                  id="category"
+                  value={selectedCategories[0] || ''}
+                  onChange={(e) => setSelectedCategories([e.target.value])}
+                  className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-indigo-500 focus:border-indigo-500"
+                  required>
+                  <option value="" disabled>
+                    Select a category
+                  </option>
+                  {categories.map((cat) => (
+                    <option key={cat.categoryTitle} value={cat.categoryTitle}>
+                      {cat.categoryTitle}
+                    </option>
+                  ))}
+                </select>
               </div>
 
+              <label
+                htmlFor="courseDescription"
+                className="block text-sm font-medium text-gray-700 mb-1">
+                Course Description
+              </label>
+              <textarea
+                id="courseDescription"
+                value={courseDescriptionText}
+                onChange={(e) => setCourseDescriptionText(e.target.value)}
+                className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-indigo-500 focus:border-indigo-500 min-h-[150px]"
+                placeholder="Enter course description"
+                required></textarea>
               <div>
                 <label
                   htmlFor="coursePrice"
@@ -641,7 +603,10 @@ const UpdateCourse = () => {
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div
             className="fixed inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowChapterPopup(false)}></div>
+            onClick={() => {
+              setShowChapterPopup(false);
+              setNewChapterTitle('');
+            }}></div>
           <div className="bg-white rounded-lg p-6 w-full max-w-md z-10">
             <h3 className="text-lg font-medium text-gray-900 mb-4">
               Add New Chapter
@@ -810,39 +775,6 @@ const UpdateCourse = () => {
                 onClick={addLecture}
                 className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 Add Lecture
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="fixed inset-0 bg-black bg-opacity-50"
-            onClick={() => setShowDeleteConfirm(false)}></div>
-          <div className="bg-white rounded-lg p-6 w-full max-w-md z-10">
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Delete Course
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Are you sure you want to delete this course? This action cannot be
-              undone. All enrolled students, content, and earnings data for this
-              course will be permanently removed.
-            </p>
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteCourse}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
-                Delete Course
               </button>
             </div>
           </div>

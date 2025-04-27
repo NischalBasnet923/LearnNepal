@@ -22,23 +22,30 @@ const updateRoleToTeacher = async (req, res) => {
 
 const addCourse = async (req, res) => {
   try {
-    console.log('Request received:', req.body);
-    console.log('Uploaded Files:', req.files);
-
     const { courseData } = req.body;
     const imageFile = req.files?.image ? req.files.image[0] : null;
     const videoFiles = req.files?.videos || [];
     const teacherId = req.user.id;
-
+    console.log(courseData);
     if (!imageFile) {
       return res
         .status(400)
         .json({ success: false, message: 'Thumbnail not attached' });
     }
+    const parsedCourseData = JSON.parse(courseData);
+    const checkCategory = await prisma.courseCategory.findFirst({
+      where: {
+        categoryTitle: parsedCourseData.categories[0],
+      },
+    });
+    console.log(checkCategory);
+    console.log(parsedCourseData.categories[0]);
+
+    if (!checkCategory)
+      return res.status(400).json({ message: 'category not found' });
 
     // Upload the course thumbnail to Cloudinary
     const imageUpload = await cloudinary.uploader.upload(imageFile.path);
-    const parsedCourseData = JSON.parse(courseData);
     parsedCourseData.teacherId = teacherId;
     parsedCourseData.courseThumbnail = imageUpload.secure_url;
 
@@ -63,7 +70,11 @@ const addCourse = async (req, res) => {
       data: {
         courseTitle: parsedCourseData.courseTitle,
         courseDescription: parsedCourseData.courseDescription,
-        category: 'empty',
+        category: {
+          connect: {
+            id: checkCategory.id,
+          },
+        },
         coursePrice: parsedCourseData.coursePrice,
         discount: parsedCourseData.discount || 0,
         isPublished: parsedCourseData.isPublished || true,
@@ -109,18 +120,13 @@ const addCourse = async (req, res) => {
 
 const updateCourse = async (req, res) => {
   try {
-    console.log('Update Request received:', req.body);
-    console.log('Uploaded Files:', req.files);
-
     const { courseId } = req.params;
     const { courseData } = req.body;
-    const imageFile = req.files?.image ? req.files.image[0] : null;
+    const imageFile = req.files?.image?.[0] || null;
     const videoFiles = req.files?.videos || [];
     const teacherId = req.user.id;
-    console.log(courseId);
-    console.log('sdfgfsdg', req.body);
-    console.log(imageFile, videoFiles, teacherId);
 
+    console.log('Update Request received:', req.body);
     if (!courseId) {
       return res
         .status(400)
@@ -129,7 +135,13 @@ const updateCourse = async (req, res) => {
 
     const existingCourse = await prisma.course.findUnique({
       where: { id: courseId },
-      include: { chapters: { include: { lectures: true } } },
+      include: {
+        chapters: {
+          include: {
+            lectures: true,
+          },
+        },
+      },
     });
 
     if (!existingCourse) {
@@ -139,15 +151,36 @@ const updateCourse = async (req, res) => {
     }
 
     if (existingCourse.teacherId !== teacherId) {
-      return res.status(403).json({
+      return res
+        .status(403)
+        .json({ success: false, message: 'Unauthorized access' });
+    }
+
+    if (!courseData) {
+      return res.status(400).json({
         success: false,
-        message: 'Unauthorized to update this course',
+        message: 'Missing courseData in request body',
       });
     }
 
-    const parsedCourseData = JSON.parse(courseData);
+    let parsedCourseData;
+    try {
+      parsedCourseData = JSON.parse(courseData);
+    } catch (parseError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid courseData format',
+        error: parseError.message,
+      });
+    }
 
-    // Upload new course thumbnail if provided
+    const checkCategory = await prisma.courseCategory.findFirst({
+      where: {
+        categoryTitle: parsedCourseData.categories[0],
+      },
+    });
+
+    // Upload thumbnail if provided
     if (imageFile) {
       const imageUpload = await cloudinary.uploader.upload(imageFile.path);
       parsedCourseData.courseThumbnail = imageUpload.secure_url;
@@ -155,21 +188,38 @@ const updateCourse = async (req, res) => {
       parsedCourseData.courseThumbnail = existingCourse.courseThumbnail;
     }
 
+    // Upload new videos and update video URLs
     let videoIndex = 0;
     for (const chapter of parsedCourseData.courseContent) {
       for (const lecture of chapter.chapterContent) {
-        if (lecture.lectureUrl === '' && videoIndex < videoFiles.length) {
+        if (!lecture.lectureUrl && videoIndex < videoFiles.length) {
           const videoUpload = await cloudinary.uploader.upload(
             videoFiles[videoIndex].path,
             { resource_type: 'video' }
           );
-
           lecture.lectureUrl = videoUpload.secure_url;
           videoIndex++;
         }
       }
     }
 
+    // Delete old lectures
+    await prisma.lecture.deleteMany({
+      where: {
+        chapter: {
+          courseId: courseId,
+        },
+      },
+    });
+
+    // Delete old chapters and lectures
+    await prisma.chapter.deleteMany({
+      where: {
+        courseId: courseId,
+      },
+    });
+
+    // Update course
     const updatedCourse = await prisma.course.update({
       where: { id: courseId },
       data: {
@@ -178,9 +228,13 @@ const updateCourse = async (req, res) => {
         coursePrice: parsedCourseData.coursePrice,
         discount: parsedCourseData.discount || 0,
         isPublished: parsedCourseData.isPublished,
+        category: {
+          connect: {
+            id: checkCategory.id,
+          },
+        },
         courseThumbnail: parsedCourseData.courseThumbnail,
         chapters: {
-          deleteMany: {}, // Remove existing chapters before adding new ones
           create: parsedCourseData.courseContent.map((chapter) => ({
             chapterTitle: chapter.chapterTitle,
             chapterOrder: chapter.chapterOrder,
@@ -197,9 +251,12 @@ const updateCourse = async (req, res) => {
         },
       },
       include: {
-        enrollments: true,
+        chapters: {
+          include: {
+            lectures: true,
+          },
+        },
         teacher: true,
-        chapters: { include: { lectures: true } },
       },
     });
 
@@ -302,78 +359,6 @@ const teacherDashboardData = async (req, res) => {
   }
 };
 
-// const educatorDashboardData = async (req, res) => {
-//     try {
-//         const educatorId = req.user.id; // Fetch the educator's ID from the authenticated user
-
-//         // Fetch all courses created by the educator
-//         const courses = await prisma.course.findMany({
-//             where: { teacherId: educatorId },
-//             include: {
-//                 enrollments: {
-//                     include: {
-//                         user: {
-//                             select: {
-//                                 id: true,
-//                                 username: true,
-//                                 imageUrl: true,
-//                             },
-//                         },
-//                     },
-//                 },
-//             },
-//         });
-
-//         // Calculate total courses
-//         const totalCourses = courses.length;
-
-//         // Extract course IDs
-//         const courseIds = courses.map(course => course.id);
-
-//         // Calculate total earnings from purchases
-//         const purchases = await prisma.purchase.findMany({
-//             where: {
-//                 courseId: { in: courseIds },
-//                 status: 'completed',
-//             },
-//             select: {
-//                 amount: true,
-//             },
-//         });
-
-//         const totalEarnings = purchases.reduce((sum, purchase) => sum + purchase.amount, 0);
-
-//         // Collect enrolled students with course titles
-//         const enrolledStudentsData = [];
-//         courses.forEach(course => {
-//             course.enrollments.forEach(enrollment => {
-//                 enrolledStudentsData.push({
-//                     courseTitle: course.courseTitle,
-//                     studentName: enrollment.user.username,
-//                     studentImage: enrollment.user.imageUrl,
-//                 });
-//             });
-//         });
-
-//         // Return aggregated data
-//         return res.status(200).json({
-//             success: true,
-//             data: {
-//                 totalCourses,
-//                 totalEarnings,
-//                 enrolledStudents: enrolledStudentsData,
-//             },
-//         });
-//     } catch (error) {
-//         console.error("Error fetching educator dashboard data:", error);
-//         return res.status(500).json({
-//             success: false,
-//             message: "Server error",
-//             error: error.message,
-//         });
-//     }
-// };
-
 const getEnrollmentStudentData = async (req, res) => {
   try {
     const teacherId = req.user.id;
@@ -433,6 +418,88 @@ const getEnrollmentStudentData = async (req, res) => {
     });
   }
 };
+
+const getTeacherReport = async (req, res) => {
+  try {
+    const teacherId = req.user.id;
+
+    const courses = await prisma.course.findMany({
+      where: { teacherId },
+      include: {
+        enrollments: true,
+        ratings: true,
+        purchases: true,
+      },
+    });
+
+    const report = {
+      teacherId,
+      totalCourses: courses.length,
+      totalEnrollments: 0,
+      totalEarnings: {
+        monthly: 0,
+        yearly: 0,
+      },
+      courseDetails: [],
+    };
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
+    for (const course of courses) {
+      const courseEnrollments = course.enrollments.length;
+      report.totalEnrollments += courseEnrollments;
+
+      const courseRatings = course.ratings.map((r) => r.rating);
+      const avgRating =
+        courseRatings.length > 0
+          ? courseRatings.reduce((a, b) => a + b, 0) / courseRatings.length
+          : null;
+
+      let monthlyEarnings = 0;
+      let yearlyEarnings = 0;
+
+      course.purchases.forEach((purchase) => {
+        const createdAt = new Date(purchase.createdAt);
+        const isCompleted = purchase.status === 'completed';
+
+        if (!isCompleted) return;
+
+        if (
+          createdAt.getFullYear() === currentYear &&
+          createdAt.getMonth() === currentMonth
+        ) {
+          monthlyEarnings += purchase.amount;
+        }
+
+        if (createdAt.getFullYear() === currentYear) {
+          yearlyEarnings += purchase.amount;
+        }
+      });
+
+      report.totalEarnings.monthly += monthlyEarnings;
+      report.totalEarnings.yearly += yearlyEarnings;
+
+      report.courseDetails.push({
+        courseId: course.id,
+        title: course.courseTitle,
+        enrollments: courseEnrollments,
+        averageRating: avgRating,
+        monthlyEarnings,
+        yearlyEarnings,
+      });
+    }
+
+    return res.status(200).json({ success: true, report });
+  } catch (error) {
+    console.error('Error generating teacher report:', error);
+    return res
+      .status(500)
+      .json({ success: false, message: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   updateRoleToTeacher,
   addCourse,
@@ -440,4 +507,5 @@ module.exports = {
   teacherDashboardData,
   getEnrollmentStudentData,
   updateCourse,
+  getTeacherReport,
 };

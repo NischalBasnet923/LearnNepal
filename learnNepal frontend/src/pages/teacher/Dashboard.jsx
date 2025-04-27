@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppContext } from '../../context/AppContext';
 import apiClient from '../../api/axios';
 import { toast } from 'react-toastify';
@@ -8,6 +9,7 @@ import appointments from '../../assets/image/appointments_icon.svg';
 import earning from '../../assets/image/earning_icon.svg';
 
 const Dashboard = () => {
+  const navigate = useNavigate();
   const { currency, isTeacher } = useContext(AppContext);
   const [dashboardData, setDashboardData] = useState(null);
 
@@ -63,11 +65,19 @@ const Dashboard = () => {
             <div>
               <p className="text-2xl font-medium text-gray-600">
                 {currency}
-                {dashboardData.totalEarnings}
+                {Number(dashboardData.totalEarnings).toFixed(2)}
               </p>
               <p className="text-base text-gray-500">Total Earnings</p>
             </div>
           </div>
+        </div>
+
+        <div className="flex justify-end w-full">
+          <button
+            onClick={() => navigate('/teacher/report')}
+            className="bg-blue-600 text-white px-5 py-2 rounded-md hover:bg-blue-700 transition-all duration-200">
+            Generate Report
+          </button>
         </div>
 
         <div>
@@ -91,10 +101,15 @@ const Dashboard = () => {
                     </td>
                     <td className="md:px-4 px-2 py-3 flex items-center space-x-3">
                       <img
-                        src={data.user.imageUrl}
+                        src={
+                          data.user.imageUrl
+                            ? data.user.imageUrl
+                            : 'https://res.cloudinary.com/diag9maev/image/upload/v1744996569/cHJpdmF0ZS9sci9pbWFnZXMvd2Vic2l0ZS8yMDIzLTAxL3JtNjA5LXNvbGlkaWNvbi13LTAwMi1wLnBuZw_dtc4nk.jpg'
+                        }
                         alt="student"
                         className="w-9 h-9 rounded-full"
                       />
+
                       <span className="truncate">{data.user.username}</span>
                     </td>
                     <td className="px-4 py-3 truncate">

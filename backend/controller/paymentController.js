@@ -3,6 +3,9 @@ const {
   verifyKhaltiPayment,
 } = require('./khaltiController');
 const prisma = require('../prismaClient');
+const transporter = require('../config/nodemailer.js');
+const courseEnrollmentTemplate = require('../courseEnrollmentTemplate.js');
+require('dotenv').config();
 
 // Purchase Course using Khalti
 const purchaseCourseKhalti = async (req, res) => {
@@ -99,6 +102,12 @@ const completeKhaltiPayment = async (req, res) => {
       data: { status: 'completed', pidx, transactionId: transaction_id },
     });
 
+    const coursedata = await prisma.course.findFirst({
+      where: {
+        id: purchase.courseId,
+      },
+    });
+
     // Enroll user in the course
     await prisma.enrollment.create({
       data: {
@@ -106,6 +115,25 @@ const completeKhaltiPayment = async (req, res) => {
         courseId: purchase.courseId,
       },
     });
+    const userData = await prisma.user.findFirst({
+      where: {
+        id: purchase.userId,
+      },
+    });
+    const mailContent = courseEnrollmentTemplate(
+      userData.username,
+      coursedata.courseTitle
+    );
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: userData.email,
+      subject: mailContent.subject,
+      html: mailContent.html,
+    };
+
+    await transporter.sendMail(mailOptions);
+
     return res.redirect(`http://localhost:5173`);
   } catch (error) {
     console.error('Error verifying Khalti payment:', error);

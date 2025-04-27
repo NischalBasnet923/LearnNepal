@@ -1,18 +1,18 @@
-import React, { useState } from "react";
-import { loginData } from "../../constants/textdata.js";
-import CustomButton from "../../components/basic components/button.jsx";
-import logo from "../..//assets/image/logo.png";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import apiClient from "../../api/axios.js";
+import React, { useState } from 'react';
+import { loginData } from '../../constants/textdata.js';
+import CustomButton from '../../components/basic components/button.jsx';
+import logo from '../..//assets/image/logo.png';
+import { Link, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import apiClient from '../../api/axios.js';
 
 const Signup = () => {
   const [activeButton, setActiveButton] = useState(null);
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate(); // Correctly initialize the navigate function
 
   const handleClick = async (e) => {
@@ -25,11 +25,11 @@ const Signup = () => {
     console.log(payload);
 
     try {
-      const response = await apiClient.post("/register", payload);
+      const response = await apiClient.post('/register', payload);
       toast.success(response.data.message);
-      navigate("/auth/signin");
+      navigate('/auth/tagSelector', { replace: true, state: { email } });
     } catch (error) {
-      toast.error("Failed to register");
+      toast.error('Failed to register');
       console.log(error);
     }
   };
@@ -104,7 +104,7 @@ const Signup = () => {
             <footer>
               <hr className="my-5" />
               <p className="text-sm text-gray-500">
-                Already have an account?{" "}
+                Already have an account?{' '}
                 <Link to="/auth/signin" className="text-black">
                   Sign In
                 </Link>

@@ -10,6 +10,7 @@ import apiClient from '../../api/axios';
 const AddCourse = () => {
   const quillRef = useRef(null);
   const editorRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [showChapterPopup, setShowChapterPopup] = useState(false);
   const [newChapterTitle, setNewChapterTitle] = useState('');
@@ -26,6 +27,38 @@ const AddCourse = () => {
     lectureUrl: '',
     isPreviewFree: false,
   });
+  // Add state for categories
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [showCategoriesDropdown, setShowCategoriesDropdown] = useState(false);
+
+  // Available categories
+  const availableCategories = [
+    'Programming',
+    'Design',
+    'Marketing',
+    'Business',
+    'AI',
+    'DevOps',
+    'Cybersecurity',
+    'Data Science',
+    'Finance',
+    'Leadership',
+    'Cloud Computing',
+    'Machine Learning',
+    'UI/UX',
+    'Photography',
+    'Mobile Development',
+    'Game Development',
+    'Entrepreneurship',
+    'English',
+    'Sales',
+    'Blockchain',
+  ];
+
+  // Handle category selection
+  const toggleCategory = (category) => {
+    setSelectedCategories([category]);
+  };
 
   // Handle adding, toggling, and removing chapters
   const handleChapter = (action, chapterId) => {
@@ -127,6 +160,11 @@ const AddCourse = () => {
       return;
     }
 
+    if (selectedCategories.length === 0) {
+      toast.error('Please select at least one category');
+      return;
+    }
+
     // Format course data
     const formattedChapters = chapters.map(
       ({ chapterId, chapterTitle, chapterOrder, chapterContent }) => ({
@@ -159,7 +197,9 @@ const AddCourse = () => {
       coursePrice: Number(coursePrice),
       discount: Number(discount),
       courseContent: formattedChapters,
+      categories: selectedCategories, // Add categories to the payload
     };
+    console.log(image);
 
     const formData = new FormData();
     formData.append('courseData', JSON.stringify(payload));
@@ -174,6 +214,7 @@ const AddCourse = () => {
       });
     });
 
+    setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
       const { data } = await apiClient.post('/add-course', formData, {
@@ -191,12 +232,15 @@ const AddCourse = () => {
         setImage(null);
         setDiscount(0);
         setCoursePrice(0);
+        setSelectedCategories([]); // Reset categories
       } else {
         toast.error(data.message);
       }
     } catch (error) {
       console.error('Upload Error:', error.response?.data || error.message);
       toast.error('An error occurred while adding the course.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -206,6 +250,25 @@ const AddCourse = () => {
         theme: 'snow',
       });
     }
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      const dropdown = document.getElementById('categories-dropdown');
+      if (
+        dropdown &&
+        !dropdown.contains(event.target) &&
+        !event.target.classList.contains('categories-trigger')
+      ) {
+        setShowCategoriesDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
   }, []);
 
   return (
@@ -238,6 +301,102 @@ const AddCourse = () => {
                   className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
+              </div>
+
+              {/* Categories Section */}
+              <div className="col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Course Categories
+                </label>
+                <div className="relative">
+                  {/* Selected categories */}
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {selectedCategories.length > 0 && (
+                      <div className="bg-indigo-100 text-indigo-800 px-3 py-1 rounded-full text-sm flex items-center">
+                        {selectedCategories[0]}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Dropdown trigger */}
+                  <div
+                    className="w-full rounded-md border-gray-300 shadow-sm px-4 py-2 border bg-white focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer flex justify-between items-center categories-trigger"
+                    onClick={() =>
+                      setShowCategoriesDropdown(!showCategoriesDropdown)
+                    }>
+                    <span
+                      className={
+                        selectedCategories.length
+                          ? 'text-gray-700'
+                          : 'text-gray-400'
+                      }>
+                      {selectedCategories.length
+                        ? `${selectedCategories.length} categories selected`
+                        : 'Select categories for your course'}
+                    </span>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className={`h-5 w-5 text-gray-400 transition-transform ${
+                        showCategoriesDropdown ? 'transform rotate-180' : ''
+                      }`}
+                      viewBox="0 0 20 20"
+                      fill="currentColor">
+                      <path
+                        fillRule="evenodd"
+                        d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+
+                  {/* Dropdown menu */}
+                  {showCategoriesDropdown && (
+                    <div
+                      id="categories-dropdown"
+                      className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base overflow-auto focus:outline-none sm:text-sm border border-gray-200">
+                      <div className="px-3 py-2 border-b border-gray-200">
+                        <input
+                          type="text"
+                          className="w-full border-0 p-0 focus:ring-0 text-sm"
+                          placeholder="Search categories..."
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                      {availableCategories.map((category) => (
+                        <div
+                          key={category}
+                          className={`cursor-pointer select-none relative py-2 pl-8 pr-4 ${
+                            selectedCategories.includes(category)
+                              ? 'bg-indigo-50 text-indigo-900'
+                              : 'text-gray-900 hover:bg-gray-50'
+                          }`}
+                          onClick={() => toggleCategory(category)}>
+                          <span className="block truncate">{category}</span>
+                          {selectedCategories.includes(category) && (
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-2 text-indigo-600">
+                              <svg
+                                className="h-5 w-5"
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor">
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {!selectedCategories.length && (
+                  <p className="mt-1 text-sm text-red-500">
+                    Please select at least one category
+                  </p>
+                )}
               </div>
 
               <div className="col-span-2">
@@ -445,8 +604,33 @@ const AddCourse = () => {
           <div className="flex justify-end">
             <button
               type="submit"
-              className="px-6 py-3 bg-indigo-600 text-white font-medium rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-              Create Course
+              className={`px-6 py-3 ${
+                isLoading
+                  ? 'bg-indigo-400 cursor-not-allowed'
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              } text-white font-medium rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500`}
+              disabled={isLoading}>
+              {isLoading ? (
+                <svg
+                  className="animate-spin h-5 w-5 text-white mx-auto"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24">
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"></circle>
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8v8z"></path>
+                </svg>
+              ) : (
+                'Create Course'
+              )}
             </button>
           </div>
         </form>

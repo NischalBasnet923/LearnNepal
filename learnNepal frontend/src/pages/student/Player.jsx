@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState, useRef } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { AppContext } from '../../context/AppContext';
 import humanizeDuration from 'humanize-duration';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -35,7 +35,6 @@ const Player = () => {
   const [initialRating, setInitialRating] = useState(0);
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
-  const videoRef = useRef(null);
 
   const user = localStorage.getItem('userInfo');
   const token = localStorage.getItem('token');
@@ -43,6 +42,7 @@ const Player = () => {
   const getCourseData = () => {
     const course = enrolledCourses.find((course) => course.id === courseId);
     if (course) {
+      console.log('Fetched course data:', course);
       setCoursesData(course);
 
       // Set total lectures count
@@ -65,18 +65,6 @@ const Player = () => {
       // Set initial open sections and auto-select first video
       if (course.chapters && course.chapters.length > 0) {
         setOpenSections({ 0: true });
-
-        // Auto-select first video if none is playing
-        if (!playerData && course.chapters[0].lectures.length > 0) {
-          const firstLecture = course.chapters[0].lectures[0];
-          if (firstLecture.contentUrl) {
-            setPlayerData({
-              ...firstLecture,
-              chapter: 1,
-              lecture: 1,
-            });
-          }
-        }
       }
 
       // Load initial course progress
@@ -281,45 +269,67 @@ const Player = () => {
     }
   };
 
+  const handleCertificateDownload = () => {
+    const certificateData = {
+      studentName: JSON.parse(user)?.username || 'John Doe',
+      courseName: coursesData.courseTitle || 'Advanced Web Development',
+      completionDate: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+      certificateId: `LNPL-${Math.floor(1000000 + Math.random() * 9000000)}`,
+      instructorName: coursesData.teacher.username || 'Dr. Sarah Johnson',
+      hoursCompleted: `${Math.round(totalLectures * 1)}`, // Assuming 1 hour per lecture
+      grade: 'Excellence',
+    };
+    navigate('/player/certificate', { state: certificateData });
+  };
+
   return coursesData ? (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Back button */}
-      <div className="p-4 flex items-center">
+      {/* Header with Back button and Course Progress */}
+      <div className="py-3 px-5 flex items-center justify-between border-b border-gray-200 bg-white">
         <button
           onClick={() => navigate(-1)}
           className="flex items-center text-gray-700 hover:text-blue-600 transition-colors">
           <ArrowLeft size={20} className="mr-2" />
           <span className="font-medium">Back to courses</span>
         </button>
+
+        {/* Course progress in header for better visibility */}
+        {coursesData && (
+          <div className="flex items-center ml-6 max-w-md w-full">
+            <div className="flex-grow text-sm font-medium text-gray-700 mr-3">
+              {coursesData.courseTitle}
+            </div>
+            <div className="w-32 h-2.5 bg-gray-200 rounded-full">
+              <div
+                className="h-2.5 bg-blue-600 rounded-full"
+                style={{ width: `${currentProgress}%` }}></div>
+            </div>
+            <span className="ml-3 min-w-12 text-right text-sm font-medium text-gray-700">
+              {Math.round(currentProgress)}%
+            </span>
+          </div>
+        )}
       </div>
 
-      {/* Main content area - full height minus the back button */}
+      {/* Main content area - Flexible layout that adapts well to different screen sizes */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Course Structure Sidebar - LEFT - Scrollable */}
-        <div className="w-1/3 flex flex-col bg-white border-r border-gray-200 shadow-lg overflow-y-auto">
-          {/* Course title and progress */}
-          <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+        {/* Course Structure Sidebar - Now collapsible with toggle button */}
+        <div className="relative w-1/4 flex flex-col bg-white border-r border-gray-200 shadow-md overflow-y-auto">
+          {/* Course title area */}
+          <div className="p-5 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
             {coursesData && (
-              <>
-                <h1 className="text-xl font-bold text-gray-900 truncate">
-                  {coursesData.courseTitle}
-                </h1>
-                <div className="flex items-center mt-3 text-sm text-gray-600">
-                  <div className="w-full h-2 bg-gray-200 rounded-full">
-                    <div
-                      className="h-2 bg-blue-600 rounded-full"
-                      style={{ width: `${currentProgress}%` }}></div>
-                  </div>
-                  <span className="ml-2 min-w-16 text-right">
-                    {Math.round(currentProgress)}%
-                  </span>
-                </div>
-              </>
+              <h1 className="text-lg font-bold text-gray-900 truncate">
+                Course Content
+              </h1>
             )}
           </div>
 
           {/* Course chapters list */}
-          <div>
+          <div className="flex-1 overflow-y-auto">
             {coursesData &&
               coursesData.chapters.map((chapter, index) => (
                 <div
@@ -328,7 +338,7 @@ const Player = () => {
                   <div
                     className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => toggleSection(index)}>
-                    <div className="flex items-center space-x-2">
+                    <div className="flex items-center space-x-2.5">
                       {openSections[index] ? (
                         <ChevronUp size={18} className="text-gray-500" />
                       ) : (
@@ -361,7 +371,7 @@ const Player = () => {
                         return (
                           <li
                             key={i}
-                            className={`flex items-start py-3 px-2 rounded-md mb-1 ${
+                            className={`flex items-start py-3 px-3 rounded-md mb-1.5 ${
                               isActive
                                 ? 'bg-blue-50 border-l-4 border-blue-500'
                                 : 'hover:bg-gray-50'
@@ -390,18 +400,26 @@ const Player = () => {
                                     ? 'text-gray-600'
                                     : 'text-gray-800'
                                 }`}
-                                onClick={() =>
-                                  lecture.contentUrl &&
-                                  setPlayerData({
-                                    ...lecture,
+                                onClick={() => {
+                                  const clickedLecture = {
+                                    id: lecture.id,
+                                    title: lecture.title,
+                                    contentUrl: lecture.contentUrl,
+                                    duration: lecture.duration,
+                                    description: lecture.description,
                                     chapter: index + 1,
                                     lecture: i + 1,
-                                  })
-                                }>
+                                  };
+                                  console.log(
+                                    'Lecture clicked:',
+                                    clickedLecture
+                                  );
+                                  setPlayerData(clickedLecture);
+                                }}>
                                 {lecture.title}
                               </p>
-                              <div className="flex items-center mt-1 text-xs text-gray-500">
-                                <Clock size={12} className="mr-1" />
+                              <div className="flex items-center mt-1.5 text-xs text-gray-500">
+                                <Clock size={12} className="mr-1.5" />
                                 {humanizeDuration(
                                   lecture.duration * 60 * 1000,
                                   {
@@ -420,14 +438,14 @@ const Player = () => {
           </div>
         </div>
 
-        {/* Right side content - Fixed */}
-        <div className="w-2/3 flex flex-col bg-gray-900 overflow-hidden">
-          {/* Video player - Reduced height */}
-          <div className="h-3/5">
+        {/* Main content with tabs for better organization */}
+        <div className="w-3/4 flex flex-col bg-gray-100 overflow-hidden">
+          {/* Video player - Full width and responsive height */}
+          <div className="bg-black h-2/5">
             {playerData ? (
               <video
-                ref={videoRef}
-                className="w-full h-full object-contain bg-black"
+                key={playerData.contentUrl}
+                className="w-full h-full object-contain"
                 controls
                 autoPlay
                 onEnded={handleVideoEnded}>
@@ -444,72 +462,147 @@ const Player = () => {
                   />
                 ) : (
                   <div className="text-gray-400 text-center">
-                    <PlayCircle size={64} className="mx-auto mb-3 opacity-50" />
-                    <p>Select a lecture to start learning</p>
+                    <PlayCircle size={72} className="mx-auto mb-4 opacity-50" />
+                    <p className="text-lg">
+                      Select a lecture to start learning
+                    </p>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Video info panel - Expanded and fixed */}
-          <div className="flex-1 bg-white overflow-y-auto">
+          {/* Tabbed interface for better organization */}
+          <div className="flex-1 flex flex-col bg-white overflow-hidden">
             {playerData ? (
-              <div className="p-6 border-t border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h2 className="text-xl font-semibold text-gray-800">
-                      {playerData.title}
-                    </h2>
-                    <div className="flex items-center mt-2 text-sm text-gray-600 space-x-4">
-                      <span className="flex items-center">
-                        <BookOpen size={16} className="mr-1" />
-                        Chapter {playerData.chapter}, Lecture{' '}
-                        {playerData.lecture}
-                      </span>
-                      {playerData.duration && (
+              <>
+                {/* Tab navigation */}
+                <div className="flex border-b border-gray-200">
+                  <button className="py-4 px-6 text-blue-600 border-b-2 border-blue-600 font-medium">
+                    Lecture Info
+                  </button>
+                </div>
+
+                {/* Content area with overflow scroll */}
+                <div className="flex-1 overflow-y-auto p-6">
+                  {/* Lecture title and meta info */}
+                  <div className="flex items-center justify-between mb-5">
+                    <div>
+                      <h2 className="text-xl font-semibold text-gray-800">
+                        {playerData.title}
+                      </h2>
+                      <div className="flex items-center mt-2 text-sm text-gray-600 space-x-5">
                         <span className="flex items-center">
-                          <Clock size={16} className="mr-1" />
-                          {humanizeDuration(playerData.duration * 60 * 1000, {
-                            units: ['h', 'm'],
-                          })}
+                          <BookOpen size={16} className="mr-1.5" />
+                          Chapter {playerData.chapter}, Lecture{' '}
+                          {playerData.lecture}
                         </span>
+                        {playerData.duration && (
+                          <span className="flex items-center">
+                            <Clock size={16} className="mr-1.5" />
+                            {humanizeDuration(playerData.duration * 60 * 1000, {
+                              units: ['h', 'm'],
+                            })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Description card */}
+                  {playerData.description && (
+                    <div className="mt-4 p-5 bg-gray-50 rounded-lg text-gray-700 border border-gray-100">
+                      <h3 className="text-md font-medium mb-2">Description</h3>
+                      <p>{playerData.description}</p>
+                    </div>
+                  )}
+
+                  {/* Quick notes section - Always visible */}
+                  <div className="mt-6">
+                    <h3 className="text-md font-medium text-gray-800 mb-3">
+                      Quick Notes
+                    </h3>
+                    <textarea
+                      className="w-full p-3 border border-gray-200 rounded-md h-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Take quick notes while watching..."></textarea>
+                  </div>
+
+                  {/* Progress indicators and certificate section side by side */}
+                  <div className="mt-6 grid grid-cols-2 gap-6">
+                    {/* Course progress card */}
+                    <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                      <h3 className="text-md font-medium text-gray-800 mb-3">
+                        Your Progress
+                      </h3>
+                      <div className="flex items-center mt-2">
+                        <div className="w-full h-2.5 bg-gray-200 rounded-full">
+                          <div
+                            className="h-2.5 bg-blue-600 rounded-full"
+                            style={{ width: `${currentProgress}%` }}></div>
+                        </div>
+                        <span className="ml-3 font-medium text-blue-600">
+                          {Math.round(currentProgress)}%
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-3">
+                        Keep going! You're making great progress in this course.
+                      </p>
+                    </div>
+
+                    {/* Certificate section */}
+                    <div className="bg-gray-50 p-5 rounded-lg border border-gray-100">
+                      <h3 className="text-md font-medium text-gray-800 mb-3 flex items-center">
+                        <span className="mr-2">🎓</span> Certificate
+                      </h3>
+                      {currentProgress === 100 ? (
+                        <>
+                          <p className="text-gray-600 mb-4">
+                            You have completed the course!
+                          </p>
+                          <button
+                            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                            onClick={handleCertificateDownload}>
+                            Download Certificate
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-gray-500">
+                            Complete the course to unlock your certificate.
+                          </p>
+                          <div className="flex items-center mt-3">
+                            <div className="w-full h-2 bg-gray-200 rounded-full">
+                              <div
+                                className="h-2 bg-gray-400 rounded-full"
+                                style={{ width: `${currentProgress}%` }}></div>
+                            </div>
+                            <span className="ml-3 text-sm text-gray-500">
+                              {Math.round(100 - currentProgress)}% to go
+                            </span>
+                          </div>
+                        </>
                       )}
                     </div>
                   </div>
-                </div>
 
-                {playerData.description && (
-                  <div className="mt-3 p-4 bg-gray-50 rounded-md text-gray-700 border border-gray-100">
-                    {playerData.description}
-                  </div>
-                )}
+                  {/* Rating section */}
+                  <div className="mt-6 bg-gray-50 p-5 rounded-lg border border-gray-100">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Award size={22} className="text-yellow-500" />
+                      <span className="text-gray-700 font-medium">
+                        How would you rate this lecture?
+                      </span>
+                      <Rating
+                        initialRating={initialRating}
+                        onRatingChange={handleRatingChange}
+                      />
+                    </div>
 
-                {/* Rating component */}
-                <div className="mt-6 flex flex-col gap-4">
-                  <div className="flex items-center gap-3">
-                    <Award size={20} className="text-yellow-500" />
-                    <span className="text-gray-700 font-medium">
-                      Rate this course:
-                    </span>
-                    <Rating
-                      initialRating={initialRating}
-                      onRatingChange={handleRatingChange}
-                    />
-                  </div>
-
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <label
-                      htmlFor="comment"
-                      className="block mb-2 text-sm font-medium text-gray-700">
-                      Add a comment (optional)
-                    </label>
                     <textarea
-                      id="comment"
                       value={comment}
                       onChange={(e) => setComment(e.target.value)}
-                      className="w-full p-3 border border-gray-200 rounded-md min-h-20 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Share your thoughts about this course..."></textarea>
+                      className="w-full p-3 border border-gray-200 rounded-md h-24 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Share your thoughts about this lecture..."></textarea>
 
                     <button
                       onClick={submitRating}
@@ -519,27 +612,17 @@ const Player = () => {
                     </button>
                   </div>
                 </div>
-
-                {/* Additional content for the expanded area */}
-                <div className="mt-6 pt-6 border-t border-gray-100">
-                  <h3 className="text-lg font-medium text-gray-800 mb-3">
-                    Notes
-                  </h3>
-                  <div className="bg-gray-50 p-4 rounded-md">
-                    <textarea
-                      className="w-full p-3 border border-gray-200 rounded-md min-h-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      placeholder="Write your notes about this lecture here..."></textarea>
-                  </div>
-                </div>
-              </div>
+              </>
             ) : (
               <div className="h-full flex items-center justify-center p-8 text-center text-gray-500">
                 <div>
-                  <BookOpen size={48} className="mx-auto mb-4 opacity-50" />
-                  <h3 className="text-xl font-medium text-gray-700 mb-2">
-                    Select a lecture
+                  <BookOpen size={52} className="mx-auto mb-5 opacity-50" />
+                  <h3 className="text-xl font-medium text-gray-700 mb-3">
+                    Select a lecture to begin
                   </h3>
-                  <p>Choose a lecture from the sidebar to start learning</p>
+                  <p className="text-gray-500 max-w-md">
+                    Choose a lecture from the sidebar to start learning
+                  </p>
                 </div>
               </div>
             )}

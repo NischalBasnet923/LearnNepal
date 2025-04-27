@@ -1,6 +1,6 @@
-import React, { useContext } from "react";
-import { useNavigate } from "react-router-dom";
-import { AppContext } from "../../context/AppContext";
+import React, { useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { AppContext } from '../../context/AppContext';
 
 const CourseCard = ({ course }) => {
   const { currency, calculateRating } = useContext(AppContext);
@@ -22,7 +22,7 @@ const CourseCard = ({ course }) => {
 
         {/* Instructor */}
         <p className="text-sm text-gray-500">
-          by{" "}
+          by{' '}
           <span className="text-md font-semibold text-black">
             {course.teacher.username}
           </span>
@@ -36,7 +36,7 @@ const CourseCard = ({ course }) => {
           <p>{calculateRating(course)}</p>
           {[...Array(5)].map((_, i) => (
             <p key={i}>
-              {i < Math.floor(calculateRating(course)) ? "⭐" : "☆"}
+              {i < Math.floor(calculateRating(course)) ? '⭐' : '☆'}
             </p>
           ))}
           <p className="text-gray-500">{course.ratings.length}</p>
@@ -62,8 +62,7 @@ const CourseCard = ({ course }) => {
             onClick={() => {
               navigate(`/course/${course.id}`);
               window.scrollTo(0, 0);
-            }}
-          >
+            }}>
             View More
           </button>
         </div>

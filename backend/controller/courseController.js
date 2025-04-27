@@ -139,12 +139,10 @@ const createCourse = async (req, res) => {
   try {
     const { courseTitle, category } = req.body;
     if (!courseTitle || !category) {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          message: 'Please provide course title and category',
-        });
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide course title and category',
+      });
     }
 
     const course = await prisma.course.create({
@@ -167,4 +165,66 @@ const createCourse = async (req, res) => {
   }
 };
 
-module.exports = { getAllCourses, getCourseById, createCourse };
+const coursePrefs = async (req, res) => {
+  try {
+    const { categories, email } = req.body;
+    console.log(req.body);
+    if (!Array.isArray(categories) || categories.length === 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Category list is required' });
+    }
+
+    if (!email) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'Email is required' });
+    }
+
+    const userData = await prisma.user.findFirst({
+      where: {
+        email: email,
+      },
+    });
+    if (!userData) {
+      return res
+        .status(400)
+        .json({ success: false, message: 'User not found !' });
+    }
+
+    // Fetch category IDs based on category titles
+    const categoryRecords = await prisma.courseCategory.findMany({
+      where: {
+        categoryTitle: { in: categories },
+      },
+      select: { id: true },
+    });
+
+    const categoryIds = categoryRecords.map((cat) => cat.id);
+
+    // Create user preference entries
+    const prefsData = categoryIds.map((catId) => ({
+      userId: userData.id,
+      categoryId: catId,
+    }));
+
+    await prisma.userPrefs.createMany({
+      data: prefsData,
+      skipDuplicates: true,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: 'Category preferences updated successfully',
+      preferences: categoryIds,
+    });
+  } catch (error) {
+    console.error('Error updating preferences:', error.message);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal Server Error',
+    });
+  }
+};
+
+module.exports = { getAllCourses, getCourseById, createCourse, coursePrefs };
