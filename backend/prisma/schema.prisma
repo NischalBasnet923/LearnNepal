@@ -13,6 +13,7 @@ model User {
   email            String           @unique
   password         String
   imageUrl         String?
+    otp              String?
   enrolledCourses  Int?             @default(0)
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
@@ -29,6 +30,15 @@ model User {
   Requestfrom      Request[]        @relation("RequestFrom")
   Requestuser      Request[]        @relation("RequestUser")
   friends          User[]        @relation("UserFriends")
+  UserPrefs UserPrefs[]
+}
+
+model UserPrefs {
+  id         String @id @default(cuid())
+  user       User @relation(fields: [userId], references: [id])
+  userId      String
+  categoryId       String 
+  category         CourseCategory   @relation(fields: [categoryId], references: [id])
 }
 
 model TeacherRequest {
@@ -52,11 +62,12 @@ model Course {
   courseDescription String   @db.LongText
   courseThumbnail   String?
   coursePrice       Int
-  category          String?
   isPublished       Boolean  @default(true)
   discount          Int?     @default(0)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  categoryId       String 
+  category         CourseCategory   @relation(fields: [categoryId], references: [id])
 
   teacher        User             @relation(fields: [teacherId], references: [id], name: "EducatorCourses")
   teacherId      String
@@ -65,6 +76,15 @@ model Course {
   ratings        CourseRating[]
   purchases      Purchase[]
   courseProgress CourseProgress[]
+}
+
+model CourseCategory {
+  id           String    @id @default(cuid())
+  categoryTitle String
+
+  Course Course[]
+
+  UserPrefs UserPrefs[]
 }
 
 model Chapter {

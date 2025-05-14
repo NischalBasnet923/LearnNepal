@@ -112,7 +112,8 @@ const sendMessage = async (req, res) => {
 
 const getFriends = async (req, res) => {
   try {
-    const userId = req.user.userId;
+    const userId = req.user.id;
+    console.log(userId);
     const user = await prisma.user.findFirst({
       where: { id: userId },
       include: {

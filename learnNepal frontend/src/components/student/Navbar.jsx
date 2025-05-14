@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Menu, X, Search } from 'lucide-react';
 import logo from '../../assets/image/logo.png';
@@ -12,6 +12,15 @@ const Navbar = ({ data }) => {
   const [input, setInput] = useState(data || '');
   const { isTeacher, setIsTeacher, isAdmin } = useContext(AppContext);
   console.log(isTeacher);
+
+  useEffect(() => {
+    const role = localStorage.getItem('role');
+    if (role === 'teacher') {
+      setIsTeacher(true);
+    } else {
+      setIsTeacher(false);
+    }
+  }, []);
 
   const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
 
@@ -73,11 +82,7 @@ const Navbar = ({ data }) => {
               Home
             </Link>
           </li>
-          <li>
-            <Link className="text-black hover:text-blue-600" to="/mentor">
-              Mentors
-            </Link>
-          </li>
+
           <li>
             <Link className="text-black hover:text-blue-600" to="/course-list">
               Courses
@@ -186,12 +191,7 @@ const Navbar = ({ data }) => {
             onClick={() => setMenuOpen(false)}>
             Home
           </Link>
-          <Link
-            to="/mentor"
-            className="text-black hover:text-blue-600"
-            onClick={() => setMenuOpen(false)}>
-            Mentors
-          </Link>
+
           <Link
             to="/course-list"
             className="text-black hover:text-blue-600"

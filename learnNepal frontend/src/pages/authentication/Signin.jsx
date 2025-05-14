@@ -1,41 +1,41 @@
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import logo from "../../assets/image/sign.png";
-import CustomButton from "../../components/basic components/button";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import apiClient from "../../api/axios";
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import logo from '../../assets/image/sign.png';
+import CustomButton from '../../components/basic components/button';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import apiClient from '../../api/axios';
 
 const Signin = () => {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault(); // ✅ Prevents page reload
 
     if (!email || !password) {
-      toast.error("Email and password are required!");
+      toast.error('Email and password are required!');
       return;
     }
     const payload = { email, password };
     console.log(payload);
 
     try {
-      const response = await apiClient.post("/login", payload);
-      console.log("Response:", response.data);
+      const response = await apiClient.post('/login', payload);
+      console.log('Response:', response.data);
 
-      localStorage.setItem("userInfo", JSON.stringify(response.data.user));
-      localStorage.setItem("role", response.data.user.role);
-      console.log("Role:", response.data.user.role);
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem('userInfo', JSON.stringify(response.data.user));
+      localStorage.setItem('role', response.data.user.role);
+      console.log('Role:', response.data.user.role);
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('isLoggedIn', 'true');
 
-      toast.success("Login successful!");
-      navigate("/", { replace: true });
+      toast.success('Login successful!');
+      navigate('/', { replace: true });
     } catch (error) {
-      toast.error("Login failed. Please check your credentials.");
-      console.error("Login failed:", error);
+      toast.error('Login failed. Please check your credentials.');
+      console.error('Login failed:', error);
     }
   };
 
@@ -74,7 +74,7 @@ const Signin = () => {
             />
 
             <div className="text-sm text-black mb-4 text-right">
-              <Link to="/forgot-password">Forgot Password?</Link>
+              <Link to="/auth/forgot-password">Forgot Password?</Link>
             </div>
 
             {/* Sign In Button */}
@@ -85,7 +85,7 @@ const Signin = () => {
             </div>
 
             <div className="text-sm text-gray-500">
-              Don't have an account?{" "}
+              Don't have an account?{' '}
               <Link to="/auth/signup" className="text-black">
                 Sign Up
               </Link>

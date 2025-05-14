@@ -1,4 +1,3 @@
-// Updated CoursesList.js
 import React, { useContext, useState, useEffect } from 'react';
 import FilteringSection from '../../components/student/FilteringSection';
 import CourseCard from '../../components/student/CourseCard';
@@ -45,11 +44,10 @@ const CoursesList = () => {
     }
 
     // Sort courses
-    if (selectedSort) {
+    if (selectedSort === 'Newest' || !selectedSort) {
+      result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else {
       switch (selectedSort) {
-        case 'Newest':
-          result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-          break;
         case 'Most Popular':
           result.sort(
             (a, b) =>
