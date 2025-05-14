@@ -2,7 +2,8 @@ const request = require('supertest');
 const app = require('../index.js');
 const prisma = require('../prismaClient');
 const bcrypt = require('bcrypt');
-
+const { logout } = require('../controller/authenticationController');
+const jwt = require('jsonwebtoken');
 describe('POST /api/login', () => {
   let user;
 
@@ -84,7 +85,7 @@ describe('POST /api/login', () => {
 
 describe('POST /api/register', () => {
   afterAll(async () => {
-    // Clean up any user created during tests
+    tests;
     await prisma.user.deleteMany({
       where: {
         email: {
@@ -127,19 +128,6 @@ describe('POST /api/register', () => {
     );
   });
 
-  // it('should fail when password is missing', async () => {
-  //   const response = await request(app).post('/api/register').send({
-  //     username: 'testuser',
-  //     email: 'testregister2@example.com',
-  //   });
-
-  //   expect(response.statusCode).toBe(400);
-  //   expect(response.body).toHaveProperty(
-  //     'message',
-  //     'Please fill all the fields'
-  //   );
-  // });
-
   it('should fail when username is missing', async () => {
     const response = await request(app).post('/api/register').send({
       email: 'testregister3@example.com',
@@ -151,5 +139,46 @@ describe('POST /api/register', () => {
       'message',
       'Please fill all the fields'
     );
+  });
+});
+user.test.js;
+user.test.js;
+describe('POST /api/logout', () => {
+  let token;
+
+  beforeAll(async () => {
+    const user = await prisma.user.create({
+      data: {
+        username: 'testuser',
+        email: 'testuser@example.com',
+        password: 'testpassword',
+        role: 'student',
+      },
+    });
+
+    token = jwt.sign(
+      { id: user.id, name: user.username, role: user.role, email: user.email },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({
+      where: { email: 'testuser@example.com' },
+    });
+
+    if (app && app.close) {
+      app.close();
+    }
+  });
+
+  it('should log the user out successfully', async () => {
+    const response = await request(app)
+      .post('/api/logout')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.status).toBe(200);
+    expect(response.body.message).toBe('Logout successful');
   });
 });
